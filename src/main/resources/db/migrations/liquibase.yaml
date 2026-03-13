@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/1_create_users_table.sql
+            relativeToChangelogFile: true

@@ -1,0 +1,102 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.11'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'co.uzzu.dotenv.gradle' version '4.0.0'
+    id 'org.openapi.generator' version '7.11.0'
+
+}
+
+group = 'dk.viplev'
+version = '0.0.1-SNAPSHOT'
+description = 'VIPLEV api'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.liquibase:liquibase-core'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16'
+	implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
+	implementation 'com.auth0:java-jwt:4.5.1'
+
+
+
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'org.postgresql:postgresql'
+	annotationProcessor 'org.projectlombok:lombok'
+	annotationProcessor 'org.springframework.boot:spring-boot-cofiguration-processor'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+tasks.named('bootRun') {
+	environment = env.allVariables()
+}
+
+
+// OpenAPI generator configuration
+openApiGenerate {
+	if(new File("$projectDir/src/main/resources/openapi").exists()) {
+		generatorName = 'spring'
+		inputSpec = layout.projectDirectory.file("src/main/resources/openapi/openapi.yaml").asFile.absolutePath
+		outputDir = layout.buildDirectory.dir("generated/openapi").get().asFile.absolutePath
+		apiPackage = "dk.viplev.api.adapter.inbound.rest"
+		modelPackage = "dk.viplev.api.adapter.inbound.rest.dto"
+//      modelNameSuffix = "DTO" // Dont enable this, as it will append DTO to all DTOs but, it also append DTO to LocalDateTime
+		configOptions = [
+			dateLibrary: "java8",                   // Brug moderne Java 21 dato/tid
+			useJakartaEe: "true",                   // Brug Jakarta EE i stedet for Java EE
+			useTags: "true",                        // Grupper API'er baseret på tags
+			delegatePattern: "true",                // Brug delegation i stedet for direkte implementering
+			useBeanValidation: "true",              // Aktiver `@Valid` i DTO'er
+			serializableModel: "true",              // Gør DTO'er `Serializable`
+			apiNameSuffix: "Api",                   // Suffix for API-klasser
+			generateApiDocumentation: "true",       // Generer API-dokumentation
+		]
+		globalProperties = [
+			models: "",                             // Genererer alle modeller
+			apis: "",                               // Genererer alle API'er
+			supportingFiles: "ApiUtil.java"         // Sikrer nødvendige hjælpefiler
+		]
+		// Use fully qualified mapping for date-time to LocalDateTime
+		typeMappings = ['string+date-time': 'LocalDateTime']
+		importMappings = ['LocalDateTime': 'java.time.LocalDateTime']
+		// Prevent the generator from creating a DTO for java.time.LocalDateTime
+		languageSpecificPrimitives = ['java.time.LocalDateTime']
+	}
+}
+
+// Automaticly include the auto-generated code in the main source set
+sourceSets {
+	main {
+		java {
+			srcDir layout.buildDirectory.dir("generated/openapi/src/main/java").get().asFile
+		}
+	}
+}
+
+// Make sure the code is generated before compiling
+compileJava.dependsOn tasks.openApiGenerate
