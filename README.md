@@ -1,6 +1,53 @@
 # viplev
 
 
+## Commit message convention
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) and [semantic-release](https://github.com/semantic-release/semantic-release) for automated versioning and changelog generation.
+
+### Format
+
+```
+<type>(<optional scope>): <description>
+
+<optional body>
+
+<optional footer>
+```
+
+### Types
+
+| Type | Description | Version bump |
+|------|-------------|--------------|
+| `feat` | New feature or functionality | Minor |
+| `fix` | Bug fix | Patch |
+| `docs` | Documentation only | None |
+| `chore` | Build, CI, tooling, dependencies | None |
+| `refactor` | Code change that neither fixes a bug nor adds a feature | None |
+| `test` | Adding or updating tests | None |
+| `perf` | Performance improvement | Patch |
+
+A commit with `BREAKING CHANGE:` in the footer (or `!` after the type) triggers a **major** version bump.
+
+### Examples
+
+```
+feat: add environment CRUD endpoints
+fix: correct JWT expiry duration
+docs: update README with commit conventions
+chore: upgrade Spring Boot to 3.5.11
+refactor(security): extract token validation to separate method
+feat!: change environment API response format
+```
+
+### Pull requests
+
+- PR title must follow the same Conventional Commits format — it becomes the merge commit message
+- Keep the title short (under 72 characters), use the description for details
+- PR description should include:
+  - **Summary** — what changed and why (2-3 bullet points)
+  - **Test plan** — how to verify the changes
+
 ## Run with Gradle
 
 The project uses the [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html), which is included in the repository. No separate Gradle installation is required.
