@@ -40,3 +40,5 @@ out/
 ### Environment ###
 .env
 
+### NPM ###
+node_modules
