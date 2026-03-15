@@ -43,7 +43,6 @@ public class WebSecurityConfig {
 				.requestMatchers("/swagger-ui/**").permitAll()
 				.requestMatchers("/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/v1/auth/login").permitAll()
 				.anyRequest().authenticated()
             )
