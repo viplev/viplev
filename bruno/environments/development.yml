@@ -1,0 +1,4 @@
+name: development
+variables:
+  - name: access_token
+    value: test

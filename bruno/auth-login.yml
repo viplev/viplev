@@ -10,10 +10,16 @@ http:
     type: json
     data: |-
       {
-        "username": "user1@viplev.com",
+        "email": "user2@viplev.dk",
         "password": "password"
       }
-  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        let data = res.body;
+        bru.setEnvVar('access_token', data.token);
 
 settings:
   encodeUrl: true
