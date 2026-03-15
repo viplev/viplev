@@ -6,3 +6,29 @@ databaseChangeLog:
         - sqlFile:
             path: changes/1_create_users_table.sql
             relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/1_drop_users_table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 2
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/2_create_user_roles_table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/2_drop_user_roles_table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 3
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/3_seed_users.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/3_delete_seed_users.sql
+            relativeToChangelogFile: true

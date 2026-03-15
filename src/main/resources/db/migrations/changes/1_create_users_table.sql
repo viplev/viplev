@@ -10,4 +10,3 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX idx_email on users(email);
-
