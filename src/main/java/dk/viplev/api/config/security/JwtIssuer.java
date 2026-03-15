@@ -27,4 +27,12 @@ public class JwtIssuer {
             .withClaim("roles", roles)
             .sign(Algorithm.HMAC256(properties.getSecretKey()));
     }
+
+    public String issueEnvironmentToken(UUID environmentId, UUID ownerId) {
+        return JWT.create()
+            .withSubject(environmentId.toString())
+            .withClaim("type", "environment")
+            .withClaim("ownerId", ownerId.toString())
+            .sign(Algorithm.HMAC256(properties.getSecretKey()));
+    }
 }

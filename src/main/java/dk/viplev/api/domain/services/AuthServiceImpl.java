@@ -14,6 +14,8 @@ import dk.viplev.api.port.inbound.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -45,7 +47,10 @@ public class AuthServiceImpl implements AuthService {
         return response;
     }
 
-    
-
-    
+    @Override
+    public UUID getAuthenticatedUserId() {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        return principal.getUserId();
+    }
 }

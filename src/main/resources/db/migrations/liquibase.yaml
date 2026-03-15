@@ -32,3 +32,14 @@ databaseChangeLog:
         - sqlFile:
             path: rollback/3_delete_seed_users.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 4
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/004-create-environments.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/004-rollback-create-environments.sql
+            relativeToChangelogFile: true
