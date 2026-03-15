@@ -7,6 +7,7 @@ import dk.viplev.api.domain.exception.ForbiddenException;
 import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -94,6 +95,20 @@ public class RestErrorHandler {
 		error.setType(CONFLICT_TYPE_URI);
 
 		return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+	}
+
+	@ExceptionHandler(AuthenticationException.class)
+	public ResponseEntity<ErrorDTO> handleAuthenticationException(AuthenticationException ex, HttpServletRequest request) {
+		log.info("HTTP ERROR - 401 Unauthorized: {}", ex.getMessage());
+
+		ErrorDTO error = new ErrorDTO()
+			.status(401)
+			.type(UNAUTHORIZED_TYPE_URI)
+			.title("Unauthorized")
+			.detail("Invalid credentials")
+			.instance(URI.create(request.getRequestURI()));
+
+		return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
 	}
 
 	// internal server error handler
