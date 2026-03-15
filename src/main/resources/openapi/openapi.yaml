@@ -23,32 +23,71 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequestDTO'
+              $ref: '#/components/schemas/LoginDTO'
       responses:
         '200':
           description: Successfully authenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponseDTO'
+                $ref: '#/components/schemas/LoginDTO'
 
 components:
   schemas:
-    LoginRequestDTO:
+    LoginDTO:
       type: object
       required:
         - username
-        - password
       properties:
-        username:
+        userId:
           type: string
+          format: uuid
+          readOnly: true
+          examples:
+            - "5a56d1ef-3ff9-475d-84c8-33796245fa9f"
+        email:
+          type: string
+          examples:
+            - "user@viplev.dk"
         password:
           type: string
-
-    LoginResponseDTO:
-      type: object
-      required:
-        - token
-      properties:
+          writeOnly: true
+          examples:
+            - "mySecretPassword"
         token:
           type: string
+          readOnly: true
+          examples:
+            - "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+
+
+    ErrorDTO:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference identifying the problem type
+          examples:
+            - /errors/bad-request
+        title:
+          type: string
+          description: A short, human-readable description of the problem type
+          examples:
+            - Bad Request
+        status:
+          type: integer
+          description: HTTP status code
+          examples:
+            - 400
+        detail:
+          type: string
+          description: A detailed explanation of the problem
+          examples:
+            - The field 'name' is required
+        instance:
+          type: string
+          format: uri
+          description: URI reference identifying the specific occurrence of the problem
+          examples:
+            - /v1/environments/123
