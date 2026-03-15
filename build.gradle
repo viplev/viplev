@@ -4,6 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'co.uzzu.dotenv.gradle' version '4.0.0'
     id 'org.openapi.generator' version '7.11.0'
+	id 'jacoco'
 }
 
 group = 'dk.viplev'
@@ -56,6 +57,15 @@ bootJar {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		html.required = true
+		csv.required = true
+	}
 }
 
 tasks.named('bootRun') {
