@@ -1,0 +1,22 @@
+info:
+  name: updateEnvironment/{id}
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{http_url}}/v1/environments/{{environment_id}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "test",
+        "type": "docker"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
