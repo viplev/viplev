@@ -1,11 +1,11 @@
 info:
-  name: Root
+  name: deleteEnvironment/{id}
   type: http
-  seq: 2
+  seq: 5
 
 http:
-  method: GET
-  url: http://localhost:8080/
+  method: DELETE
+  url: "{{http_url}}/v1/environments/{{environment_id}}"
   auth: inherit
 
 settings:

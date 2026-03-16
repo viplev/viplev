@@ -7,8 +7,8 @@ info:
 tags:
   - name: Auth
     description: Auth related stuff
-
-
+  - name: Environment
+    description: Environment management
 
 paths:
 
@@ -32,7 +32,158 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginDTO'
 
+  /v1/environments:
+    get:
+      tags:
+        - Environment
+      summary: Get all environments
+      operationId: listEnvironments
+      responses:
+        '200':
+          description: List of all environments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnvironmentDTO'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+    post:
+      tags:
+        - Environment
+      summary: Create environment
+      operationId: createEnvironment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentDTO'
+      responses:
+        '201':
+          description: Environment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDTO'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+
+  /v1/environments/{environmentId}:
+    get:
+      tags:
+        - Environment
+      summary: Get an environment
+      operationId: getEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Environment found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDTO'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+    put:
+      tags:
+        - Environment
+      summary: Update an environment
+      operationId: updateEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentDTO'
+      responses:
+        '200':
+          description: Environment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDTO'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+    delete:
+      tags:
+        - Environment
+      summary: Delete an environment
+      operationId: deleteEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Environment deleted
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+
 components:
+  responses:
+    400BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    401Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    404NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+    500InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+
   schemas:
     LoginDTO:
       type: object
@@ -60,6 +211,45 @@ components:
           examples:
             - "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
 
+    EnvironmentDTO:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Unique ID for environment
+        name:
+          type: string
+          description: Name of environment
+        description:
+          type: string
+          description: Description of environment
+        type:
+          type: string
+          enum: [docker, kubernetes]
+          description: Container platform type
+        token:
+          type: string
+          readOnly: true
+          description: Authentication token for the agent, generated by the system
+        agentCommand:
+          type: string
+          readOnly: true
+          description: Generated command to spin up the agent
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when environment was created
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when environment was last updated
 
     ErrorDTO:
       type: object

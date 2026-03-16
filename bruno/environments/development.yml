@@ -1,4 +1,14 @@
 name: development
 variables:
-  - name: access_token
-    value: test
+  - secret: true
+    name: access_token
+  - name: http_protocol
+    value: http
+  - name: http_port
+    value: "8080"
+  - name: http_host
+    value: localhost
+  - name: http_url
+    value: "{{http_protocol}}://{{http_host}}:{{http_port}}"
+  - name: environment_id
+    value: ""
