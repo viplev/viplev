@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS environments (
 );
 
 CREATE INDEX idx_environments_owner ON environments(owner_id);
-CREATE INDEX idx_environments_token ON environments(token);
+
