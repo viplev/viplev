@@ -4,42 +4,130 @@ databaseChangeLog:
       author: viplev
       changes:
         - sqlFile:
-            path: changes/1_create_users_table.sql
+            path: changes/001-create-users-table.sql
             relativeToChangelogFile: true
       rollback:
         - sqlFile:
-            path: rollback/1_drop_users_table.sql
+            path: rollback/001-drop-users-table.sql
             relativeToChangelogFile: true
   - changeSet:
       id: 2
       author: viplev
       changes:
         - sqlFile:
-            path: changes/2_create_user_roles_table.sql
+            path: changes/002-create-user-roles-table.sql
             relativeToChangelogFile: true
       rollback:
         - sqlFile:
-            path: rollback/2_drop_user_roles_table.sql
+            path: rollback/002-drop-user-roles-table.sql
             relativeToChangelogFile: true
   - changeSet:
       id: 3
       author: viplev
       changes:
         - sqlFile:
-            path: changes/3_seed_users.sql
+            path: changes/003-seed-users.sql
             relativeToChangelogFile: true
       rollback:
         - sqlFile:
-            path: rollback/3_delete_seed_users.sql
+            path: rollback/003-delete-seed-users.sql
             relativeToChangelogFile: true
   - changeSet:
       id: 4
       author: viplev
       changes:
         - sqlFile:
-            path: changes/004-create-environments.sql
+            path: changes/004-create-environments-table.sql
             relativeToChangelogFile: true
       rollback:
         - sqlFile:
-            path: rollback/004-rollback-create-environments.sql
+            path: rollback/004-rollback-create-environments-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 5
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/005-create-hosts-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/005-rollback-create-hosts-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 6
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/006-create-services-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/006-rollback-create-services-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 7
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/007-create-benchmarks-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/007-rollback-create-benchmarks-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 8
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/008-create-benchmark-runs-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/008-rollback-create-benchmark-runs-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 9
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/009-create-metric-resource-hosts-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/009-rollback-create-metric-resource-hosts-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 10
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/010-create-metric-resource-services-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/010-rollback-create-metric-resource-services-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 11
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/011-create-metric-k6-http-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/011-rollback-create-metric-k6-http-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 12
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/012-create-metric-k6-vus-table.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/012-rollback-create-metric-k6-vus-table.sql
             relativeToChangelogFile: true

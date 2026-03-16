@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS environments (
     type VARCHAR(50) NOT NULL,
     token TEXT NOT NULL UNIQUE,
     owner_id UUID NOT NULL REFERENCES users(id),
+    agent_last_seen_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
