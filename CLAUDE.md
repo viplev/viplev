@@ -2,8 +2,6 @@
 
 ## Project Description
 
-// VIPLEV is an agent-based testing platform. Users register deployment targets ("environments") which can be docker or kubernetes. An agent is installed on the System Under Test (SUT) and calls home to this API using a JWT token for authentication.
-
 VIPLEV is a distributed benchmarking- and testplatform, which makes it possible to run coordinated stresstest as well as failure simulation across containerbased environments
 
 The system consist of two main components
