@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS environments (
+CREATE TABLE environments (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
