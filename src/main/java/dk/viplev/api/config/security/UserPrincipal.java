@@ -18,6 +18,7 @@ public class UserPrincipal implements UserDetails {
 
     private final UUID userId;
     private final String email;
+    private final UUID environmentId;
 
     @JsonIgnore
     private final String password;

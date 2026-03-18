@@ -1,7 +1,9 @@
 package dk.viplev.api.adapter.inbound.rest;
 
 import dk.viplev.api.adapter.inbound.rest.dto.EnvironmentDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
 import dk.viplev.api.port.inbound.EnvironmentService;
+import dk.viplev.api.port.inbound.ServiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import java.util.UUID;
 public class EnvironmentApiDelegateImpl implements EnvironmentApiDelegate {
 
     private final EnvironmentService environmentService;
+    private final ServiceService serviceService;
 
     @Override
     public ResponseEntity<List<EnvironmentDTO>> listEnvironments() {
@@ -43,5 +46,21 @@ public class EnvironmentApiDelegateImpl implements EnvironmentApiDelegate {
     public ResponseEntity<Void> deleteEnvironment(UUID environmentId) {
         environmentService.deleteEnvironment(environmentId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<List<ServiceDTO>> listServices(UUID environmentId) {
+        return ResponseEntity.ok(serviceService.listServices(environmentId));
+    }
+
+    @Override
+    public ResponseEntity<ServiceDTO> getService(UUID environmentId, UUID serviceId) {
+        return ResponseEntity.ok(serviceService.getService(environmentId, serviceId));
+    }
+
+    @Override
+    public ResponseEntity<Void> registerServices(UUID environmentId, List<ServiceDTO> serviceDTO) {
+        serviceService.registerServices(environmentId, serviceDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
