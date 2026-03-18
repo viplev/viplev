@@ -342,7 +342,7 @@ paths:
         - Benchmark
       summary: Get a benchmark
       operationId: getBenchmark
-      description: Shows meta data about the benchmark, as well a list of all runs for the currenct benchmark.
+      description: Shows meta data about the benchmark, as well a list of all runs for the current benchmark.
       parameters:
         - name: benchmarkId
           in: path
@@ -528,7 +528,7 @@ paths:
       operationId: startBenchmark
       description: |
           When this is called, a new run is created with a status of PENDING_START.
-          <br>
+
           This will be blocked if there is an ongoing run for the benchmark.
 
       responses:
@@ -924,7 +924,7 @@ components:
                 detail: Authentication token is missing or invalid
                 instance: /v1/environments
     404NotFound:
-      description: Environment not found
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -936,8 +936,8 @@ components:
                 type: /errors/not-found
                 title: Not Found
                 status: 404
-                detail: Environment with id '123' not found
-                instance: /v1/environment/123
+                detail: Resource with id '123' not found
+                instance: /v1/environments/123
     500InternalServerError:
       description: Internal server error
       content:
@@ -1739,7 +1739,8 @@ components:
     LoginDTO:
       type: object
       required:
-        - username
+        - email
+        - password
       properties:
         userId:
           type: string
