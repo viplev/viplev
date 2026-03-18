@@ -1,10 +1,11 @@
-CREATE TABLE IF NOT EXISTS environments (
+CREATE TABLE environments (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     type VARCHAR(50) NOT NULL,
     token TEXT NOT NULL UNIQUE,
     owner_id UUID NOT NULL REFERENCES users(id),
+    agent_last_seen_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
