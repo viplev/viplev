@@ -46,4 +46,7 @@ public class Environment {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "agent_last_seen_at")
+    private LocalDateTime agentLastSeenAt;
 }
