@@ -131,3 +131,14 @@ databaseChangeLog:
         - sqlFile:
             path: rollback/012-rollback-create-metric-k6-vus-table.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 13
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/013-alter-environments-drop-token-not-null.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/013-rollback-alter-environments-drop-token-not-null.sql
+            relativeToChangelogFile: true
