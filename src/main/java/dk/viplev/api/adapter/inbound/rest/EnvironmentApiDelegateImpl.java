@@ -57,10 +57,4 @@ public class EnvironmentApiDelegateImpl implements EnvironmentApiDelegate {
     public ResponseEntity<ServiceDTO> getService(UUID environmentId, UUID serviceId) {
         return ResponseEntity.ok(serviceService.getService(environmentId, serviceId));
     }
-
-    @Override
-    public ResponseEntity<Void> registerServices(UUID environmentId, List<ServiceDTO> serviceDTO) {
-        serviceService.registerServices(environmentId, serviceDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
 }

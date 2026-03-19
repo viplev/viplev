@@ -1,9 +1,11 @@
 package dk.viplev.api.domain.services;
 
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.ServiceMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
+import dk.viplev.api.domain.model.Environment;
 import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.inbound.ServiceService;
@@ -15,8 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
@@ -44,38 +48,45 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
-    public void registerServices(UUID environmentId, List<ServiceDTO> services) {
+    public void registerServices(UUID environmentId, ServiceRegistrationDTO registration) {
         UUID agentEnvironmentId = authService.getAuthenticatedEnvironmentId();
         if (agentEnvironmentId == null || !agentEnvironmentId.equals(environmentId)) {
             throw new BadRequestException("Agent token does not match the environment");
         }
 
-        List<Host> hosts = hostRepository.findByEnvironmentId(environmentId);
-        if (hosts.isEmpty()) {
-            throw new NotFoundException("No hosts found for environment");
-        }
-        Host host = hosts.get(0);
+        Environment environment = environmentRepository.findById(environmentId)
+                .orElseThrow(() -> new NotFoundException("Environment not found"));
+
+        Host host = hostRepository.findByEnvironmentIdAndName(environmentId, registration.getHostName())
+                .orElseGet(() -> {
+                    Host h = new Host();
+                    h.setEnvironment(environment);
+                    h.setName(registration.getHostName());
+                    return hostRepository.save(h);
+                });
 
         List<dk.viplev.api.domain.model.Service> existingServices =
                 serviceRepository.findByHostEnvironmentId(environmentId);
 
+        Map<String, dk.viplev.api.domain.model.Service> existingByName = existingServices.stream()
+                .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));
+
+        List<ServiceDTO> services = registration.getServices();
         Set<String> incomingServiceNames = new HashSet<>();
+
         for (ServiceDTO dto : services) {
             incomingServiceNames.add(dto.getServiceName());
 
-            var existing = existingServices.stream()
-                    .filter(s -> s.getServiceName().equals(dto.getServiceName()))
-                    .findFirst();
+            var existing = existingByName.get(dto.getServiceName());
 
-            if (existing.isPresent()) {
-                var svc = existing.get();
-                svc.setImageSha(dto.getImageSha());
-                svc.setImageName(dto.getImageName());
-                svc.setCpuLimit(dto.getCpuLimit());
-                svc.setCpuReservation(dto.getCpuReservation());
-                svc.setMemoryLimitBytes(dto.getMemoryLimitBytes());
-                svc.setMemoryReservationBytes(dto.getMemoryReservationBytes());
-                serviceRepository.save(svc);
+            if (existing != null) {
+                existing.setImageSha(dto.getImageSha());
+                existing.setImageName(dto.getImageName());
+                existing.setCpuLimit(dto.getCpuLimit());
+                existing.setCpuReservation(dto.getCpuReservation());
+                existing.setMemoryLimitBytes(dto.getMemoryLimitBytes());
+                existing.setMemoryReservationBytes(dto.getMemoryReservationBytes());
+                serviceRepository.save(existing);
             } else {
                 var svc = new dk.viplev.api.domain.model.Service();
                 svc.setHost(host);

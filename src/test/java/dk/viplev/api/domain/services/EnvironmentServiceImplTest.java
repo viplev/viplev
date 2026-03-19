@@ -72,7 +72,12 @@ class EnvironmentServiceImplTest {
         owner.setId(ownerId);
         when(userRepository.getReferenceById(ownerId)).thenReturn(owner);
         when(jwtIssuer.issueEnvironmentToken(any(), any())).thenReturn("test-token");
-        when(environmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(environmentRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            Environment env = invocation.getArgument(0);
+            env.setCreatedAt(LocalDateTime.now());
+            env.setUpdatedAt(LocalDateTime.now());
+            return env;
+        });
 
         EnvironmentDTO request = new EnvironmentDTO("New Env", EnvironmentDTO.TypeEnum.DOCKER);
 

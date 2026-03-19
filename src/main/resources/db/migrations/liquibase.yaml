@@ -142,3 +142,14 @@ databaseChangeLog:
         - sqlFile:
             path: rollback/013-rollback-alter-environments-drop-token-not-null.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 14
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/014-alter-services-composite-unique-constraint.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: rollback/014-rollback-alter-services-composite-unique-constraint.sql
+            relativeToChangelogFile: true

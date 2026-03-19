@@ -25,7 +25,7 @@ import java.util.UUID;
 public class User {
 
     @Id
-   	@GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
+    @GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
     private UUID id;
 
     @Column(nullable = false, unique = true)

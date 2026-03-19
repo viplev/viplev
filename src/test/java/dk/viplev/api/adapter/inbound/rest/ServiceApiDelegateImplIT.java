@@ -7,9 +7,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dk.viplev.api.domain.model.Host;
-import dk.viplev.api.port.outbound.db.EnvironmentRepository;
-import dk.viplev.api.port.outbound.db.HostRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,12 +29,6 @@ class ServiceApiDelegateImplIT {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
-    private EnvironmentRepository environmentRepository;
-
-    @Autowired
-    private HostRepository hostRepository;
 
     private String user1Token;
     private String user2Token;
@@ -73,12 +64,10 @@ class ServiceApiDelegateImplIT {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
-    private void createHostForEnvironment(UUID environmentId) {
-        var environment = environmentRepository.findById(environmentId).orElseThrow();
-        Host host = new Host();
-        host.setEnvironment(environment);
-        host.setName("test-host");
-        hostRepository.save(host);
+    private String buildRegistrationJson(String hostName, List<Map<String, Object>> services) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "hostName", hostName,
+                "services", services));
     }
 
     @Test
@@ -87,17 +76,15 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        createHostForEnvironment(UUID.fromString(envId));
-
-        // Register services via agent
-        String servicesJson = objectMapper.writeValueAsString(List.of(
+        // Register services via agent (host auto-created)
+        String registrationJson = buildRegistrationJson("test-host", List.of(
                 Map.of("serviceName", "svc-list-1", "imageName", "nginx:latest"),
                 Map.of("serviceName", "svc-list-2", "imageName", "redis:7")));
 
         mockMvc.perform(post("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + envToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(servicesJson))
+                        .content(registrationJson))
                 .andExpect(status().isCreated());
 
         // List services as user
@@ -115,15 +102,13 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        createHostForEnvironment(UUID.fromString(envId));
-
-        String servicesJson = objectMapper.writeValueAsString(List.of(
+        String registrationJson = buildRegistrationJson("test-host", List.of(
                 Map.of("serviceName", "svc-get-single", "imageName", "nginx:latest")));
 
         mockMvc.perform(post("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + envToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(servicesJson))
+                        .content(registrationJson))
                 .andExpect(status().isCreated());
 
         // Get the service ID from the list
@@ -159,10 +144,8 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        createHostForEnvironment(UUID.fromString(envId));
-
         // First registration: 2 services
-        String firstBatch = objectMapper.writeValueAsString(List.of(
+        String firstBatch = buildRegistrationJson("test-host", List.of(
                 Map.of("serviceName", "svc-sync-a", "imageName", "nginx:1.0"),
                 Map.of("serviceName", "svc-sync-b", "imageName", "redis:6")));
 
@@ -173,7 +156,7 @@ class ServiceApiDelegateImplIT {
                 .andExpect(status().isCreated());
 
         // Second registration: update one, add one, remove one
-        String secondBatch = objectMapper.writeValueAsString(List.of(
+        String secondBatch = buildRegistrationJson("test-host", List.of(
                 Map.of("serviceName", "svc-sync-a", "imageName", "nginx:2.0"),
                 Map.of("serviceName", "svc-sync-c", "imageName", "postgres:15")));
 

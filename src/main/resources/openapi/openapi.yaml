@@ -213,7 +213,6 @@ paths:
           $ref: '#/components/responses/500InternalServerError'
     post:
       tags:
-        - Environment
         - Agent
       summary: Agent can post a list of services
       operationId: registerServices
@@ -222,9 +221,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/ServiceDTO'
+              $ref: '#/components/schemas/ServiceRegistrationDTO'
       responses:
         '201':
           description: Services created
@@ -484,7 +481,6 @@ paths:
           format: uuid
     get:
       tags:
-        - Benchmark Actions
         - Agent
       summary: Get list of pending messages for current environment
       operationId: listMessages
@@ -758,7 +754,6 @@ paths:
           format: uuid
     post:
       tags:
-        - Benchmark Runs
         - Agent
       summary: Store resource metrics
       operationId: storeResourceMetrics
@@ -803,7 +798,6 @@ paths:
           format: uuid
     post:
       tags:
-        - Benchmark Runs
         - Agent
       summary: Store performance metrics
       operationId: storePerformanceMetrics
@@ -849,7 +843,6 @@ paths:
           format: uuid
     post:
       tags:
-        - Benchmark Runs
         - Agent
       summary: Update run with a status
       operationId: updateBenchmarkRunStatus
@@ -1454,6 +1447,20 @@ components:
         ramType:
           type: string
           description: RAM type (e.g. DDR4, DDR5)
+
+    ServiceRegistrationDTO:
+      type: object
+      required:
+        - hostName
+        - services
+      properties:
+        hostName:
+          type: string
+          description: Hostname of the agent's machine
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceDTO'
 
     ServiceDTO:
       type: object

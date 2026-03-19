@@ -1,6 +1,7 @@
 package dk.viplev.api.port.inbound;
 
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,5 +12,5 @@ public interface ServiceService {
 
     ServiceDTO getService(UUID environmentId, UUID serviceId);
 
-    void registerServices(UUID environmentId, List<ServiceDTO> services);
+    void registerServices(UUID environmentId, ServiceRegistrationDTO registration);
 }

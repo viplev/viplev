@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.ServiceMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
@@ -132,9 +133,12 @@ class ServiceServiceImplTest {
     }
 
     @Test
-    void shouldRegisterNewServices() {
+    void shouldRegisterNewServicesAndCreateHost() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
-        when(hostRepository.findByEnvironmentId(environmentId)).thenReturn(List.of(host));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+        when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
+                .thenReturn(Optional.empty());
+        when(hostRepository.save(any())).thenReturn(host);
         when(serviceRepository.findByHostEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -142,15 +146,45 @@ class ServiceServiceImplTest {
         dto.setServiceName("new-service");
         dto.setImageName("nginx:latest");
 
-        serviceService.registerServices(environmentId, List.of(dto));
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of(dto));
 
+        serviceService.registerServices(environmentId, registration);
+
+        verify(hostRepository).save(any());
+        verify(serviceRepository).save(any());
+    }
+
+    @Test
+    void shouldRegisterNewServicesWithExistingHost() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+        when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
+                .thenReturn(Optional.of(host));
+        when(serviceRepository.findByHostEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
+        when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ServiceDTO dto = new ServiceDTO();
+        dto.setServiceName("new-service");
+        dto.setImageName("nginx:latest");
+
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of(dto));
+
+        serviceService.registerServices(environmentId, registration);
+
+        verify(hostRepository, never()).save(any());
         verify(serviceRepository).save(any());
     }
 
     @Test
     void shouldUpdateExistingServices() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
-        when(hostRepository.findByEnvironmentId(environmentId)).thenReturn(List.of(host));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+        when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
+                .thenReturn(Optional.of(host));
 
         Service existing = createService("my-service", "nginx:1.0");
         when(serviceRepository.findByHostEnvironmentId(environmentId))
@@ -161,7 +195,11 @@ class ServiceServiceImplTest {
         dto.setServiceName("my-service");
         dto.setImageName("nginx:2.0");
 
-        serviceService.registerServices(environmentId, List.of(dto));
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of(dto));
+
+        serviceService.registerServices(environmentId, registration);
 
         verify(serviceRepository).save(any());
         assertThat(existing.getImageName()).isEqualTo("nginx:2.0");
@@ -170,13 +208,19 @@ class ServiceServiceImplTest {
     @Test
     void shouldDeleteRemovedServices() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
-        when(hostRepository.findByEnvironmentId(environmentId)).thenReturn(List.of(host));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+        when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
+                .thenReturn(Optional.of(host));
 
         Service existing = createService("old-service", "nginx:1.0");
         when(serviceRepository.findByHostEnvironmentId(environmentId))
                 .thenReturn(new ArrayList<>(List.of(existing)));
 
-        serviceService.registerServices(environmentId, List.of());
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of());
+
+        serviceService.registerServices(environmentId, registration);
 
         verify(serviceRepository).delete(existing);
     }
@@ -185,7 +229,11 @@ class ServiceServiceImplTest {
     void shouldRejectAgentWithMismatchedEnvironment() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(UUID.randomUUID());
 
-        assertThatThrownBy(() -> serviceService.registerServices(environmentId, List.of()))
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of());
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, registration))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Agent token does not match the environment");
     }
@@ -194,7 +242,11 @@ class ServiceServiceImplTest {
     void shouldRejectNonAgentCallingRegisterServices() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(null);
 
-        assertThatThrownBy(() -> serviceService.registerServices(environmentId, List.of()))
+        ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
+        registration.setHostName("test-host");
+        registration.setServices(List.of());
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, registration))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Agent token does not match the environment");
     }

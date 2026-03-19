@@ -8,26 +8,27 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "services")
+@Table(name = "services", uniqueConstraints = @UniqueConstraint(columnNames = {"host_id", "service_name"}))
 @Getter
 @Setter
 public class Service {
 
     @Id
-   	@GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
+    @GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "host_id", nullable = false)
     private Host host;
 
-    @Column(name = "service_name", nullable = false, unique = true)
+    @Column(name = "service_name", nullable = false)
     private String serviceName;
 
     @Column(name = "image_sha")
