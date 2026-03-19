@@ -1,5 +1,6 @@
 package dk.viplev.api.adapter.inbound.rest;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -171,7 +172,7 @@ class ServiceApiDelegateImplIT {
                         .header("Authorization", "Bearer " + user1Token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-a')].imageName").value("nginx:2.0"))
+                .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-a')].imageName", hasItem("nginx:2.0")))
                 .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-c')]").exists())
                 .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-b')]").doesNotExist());
     }

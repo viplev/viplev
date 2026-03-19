@@ -14,6 +14,7 @@ import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +49,7 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
+    @Transactional
     public void registerServices(UUID environmentId, ServiceRegistrationDTO registration) {
         UUID agentEnvironmentId = authService.getAuthenticatedEnvironmentId();
         if (agentEnvironmentId == null || !agentEnvironmentId.equals(environmentId)) {
@@ -66,7 +68,7 @@ public class ServiceServiceImpl implements ServiceService {
                 });
 
         List<dk.viplev.api.domain.model.Service> existingServices =
-                serviceRepository.findByHostEnvironmentId(environmentId);
+                serviceRepository.findByHostId(host.getId());
 
         Map<String, dk.viplev.api.domain.model.Service> existingByName = existingServices.stream()
                 .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));

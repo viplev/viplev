@@ -139,7 +139,7 @@ class ServiceServiceImplTest {
         when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
                 .thenReturn(Optional.empty());
         when(hostRepository.save(any())).thenReturn(host);
-        when(serviceRepository.findByHostEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
+        when(serviceRepository.findByHostId(host.getId())).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ServiceDTO dto = new ServiceDTO();
@@ -162,7 +162,7 @@ class ServiceServiceImplTest {
         when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
         when(hostRepository.findByEnvironmentIdAndName(environmentId, "test-host"))
                 .thenReturn(Optional.of(host));
-        when(serviceRepository.findByHostEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
+        when(serviceRepository.findByHostId(host.getId())).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         ServiceDTO dto = new ServiceDTO();
@@ -187,7 +187,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(host));
 
         Service existing = createService("my-service", "nginx:1.0");
-        when(serviceRepository.findByHostEnvironmentId(environmentId))
+        when(serviceRepository.findByHostId(host.getId()))
                 .thenReturn(new ArrayList<>(List.of(existing)));
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -213,7 +213,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(host));
 
         Service existing = createService("old-service", "nginx:1.0");
-        when(serviceRepository.findByHostEnvironmentId(environmentId))
+        when(serviceRepository.findByHostId(host.getId()))
                 .thenReturn(new ArrayList<>(List.of(existing)));
 
         ServiceRegistrationDTO registration = new ServiceRegistrationDTO();
