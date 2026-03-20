@@ -43,16 +43,18 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         UUID ownerId = authService.getAuthenticatedUserId();
         User owner = userRepository.getReferenceById(ownerId);
 
+        UUID envId = UUID.randomUUID();
+        String token = jwtIssuer.issueEnvironmentToken(envId, ownerId);
+
         Environment environment = new Environment();
+        environment.setId(envId);
         environment.setName(request.getName());
         environment.setDescription(request.getDescription());
         environment.setType(request.getType().getValue());
         environment.setOwner(owner);
+        environment.setToken(token);
 
         Environment saved = environmentRepository.saveAndFlush(environment);
-
-        String token = jwtIssuer.issueEnvironmentToken(saved.getId(), ownerId);
-        saved.setToken(token);
 
         return environmentMapper.toDto(saved);
     }

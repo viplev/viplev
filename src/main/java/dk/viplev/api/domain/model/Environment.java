@@ -3,15 +3,18 @@ package dk.viplev.api.domain.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,11 +23,13 @@ import java.util.UUID;
 @Table(name = "environments")
 @Getter
 @Setter
-public class Environment {
+public class Environment implements Persistable<UUID> {
 
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
     private UUID id;
+
+    @Transient
+    private boolean isNew = true;
 
     @Column(nullable = false)
     private String name;
@@ -34,7 +39,7 @@ public class Environment {
     @Column(nullable = false)
     private String type;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String token;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -51,4 +56,15 @@ public class Environment {
 
     @Column(name = "agent_last_seen_at")
     private LocalDateTime agentLastSeenAt;
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() {
+        this.isNew = false;
+    }
 }

@@ -31,7 +31,7 @@ public class Host {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "machine_id")
+    @Column(name = "machine_id", nullable = false)
     private String machineId;
 
     @Column(name = "ip_address")

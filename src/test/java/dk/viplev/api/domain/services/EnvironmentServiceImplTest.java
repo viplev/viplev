@@ -71,7 +71,7 @@ class EnvironmentServiceImplTest {
         User owner = new User();
         owner.setId(ownerId);
         when(userRepository.getReferenceById(ownerId)).thenReturn(owner);
-        when(jwtIssuer.issueEnvironmentToken(any(), any())).thenReturn("test-token");
+        when(jwtIssuer.issueEnvironmentToken(any(UUID.class), any())).thenReturn("test-token");
         when(environmentRepository.saveAndFlush(any())).thenAnswer(invocation -> {
             Environment env = invocation.getArgument(0);
             env.setCreatedAt(LocalDateTime.now());
