@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'dk.viplev'
-version = '0.0.1-SNAPSHOT'
+version = findProperty('appVersion') ?: '1.0.0'
 description = 'VIPLEV api'
 
 java {
@@ -55,7 +55,7 @@ dependencies {
 
 bootJar {
 	archiveBaseName = 'viplev-api'
-	version = ''
+	archiveVersion = ''
 	mainClass = 'dk.viplev.api.ApiApplication'
 }
 
@@ -115,6 +115,19 @@ sourceSets {
 		java {
 			srcDir layout.buildDirectory.dir("generated/openapi/src/main/java").get().asFile
 		}
+	}
+}
+
+// Replace @...@ placeholders in resource files with project properties
+processResources {
+	filesMatching('application.properties') {
+		filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version])
+	}
+}
+
+processTestResources {
+	filesMatching('application.properties') {
+		filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: [version: project.version])
 	}
 }
 

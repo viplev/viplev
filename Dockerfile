@@ -1,12 +1,14 @@
 FROM gradle:8-jdk21-alpine AS build
 
+ARG APP_VERSION=0.0.0
+
 WORKDIR /app
 
 COPY build.gradle settings.gradle ./
 RUN gradle dependencies --no-daemon
 
 COPY src src
-RUN gradle bootJar --no-daemon
+RUN gradle bootJar -PappVersion=${APP_VERSION} --no-daemon
 
 FROM amazoncorretto:21-alpine-jdk AS runtime
 
