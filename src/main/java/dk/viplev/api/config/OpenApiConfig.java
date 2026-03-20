@@ -9,15 +9,18 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Value("${app.version}")
-    private String appVersion;
+    private final String appVersion;
+
+    public OpenApiConfig(@Value("${app.version}") String appVersion) {
+        this.appVersion = appVersion;
+    }
 
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("VIPLEV")
-                        .description("Distributed benchmarking and test platform API")
+                        .title("VIPLEV API")
+                        .description("REST API for the VIPLEV benchmarking and test platform")
                         .version(appVersion));
     }
 }
