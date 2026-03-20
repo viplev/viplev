@@ -1,6 +1,6 @@
 FROM gradle:8-jdk21-alpine AS build
 
-ARG APP_VERSION=0.0.0
+ARG APP_VERSION=1.0.0
 
 WORKDIR /app
 
