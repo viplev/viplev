@@ -9,4 +9,6 @@ public interface AuthService {
     LoginDTO attemptLogin(String email, String password);
 
     UUID getAuthenticatedUserId();
+
+    UUID getAuthenticatedEnvironmentId();
 }

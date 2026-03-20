@@ -53,4 +53,11 @@ public class AuthServiceImpl implements AuthService {
                 .getAuthentication().getPrincipal();
         return principal.getUserId();
     }
+
+    @Override
+    public UUID getAuthenticatedEnvironmentId() {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        return principal.getEnvironmentId();
+    }
 }

@@ -1,0 +1,4 @@
+-- Intentionally empty: token NOT NULL constraint is preserved.
+-- The original migration dropped NOT NULL because saveAndFlush() caused an INSERT
+-- before the token was set. With GenerationType.UUID, Hibernate generates the ID
+-- in-memory, so we can set the token before the INSERT occurs.

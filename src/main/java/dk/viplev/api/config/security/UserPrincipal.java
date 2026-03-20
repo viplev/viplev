@@ -18,6 +18,7 @@ public class UserPrincipal implements UserDetails {
 
     private final UUID userId;
     private final String email;
+    private final UUID environmentId;
 
     @JsonIgnore
     private final String password;
@@ -36,7 +37,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getUsername() {
-        return this.email;
+        return this.email != null ? this.email : this.environmentId.toString();
     }
 
     @Override

@@ -12,6 +12,15 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 public class JwtToPrincipalConverter {
 
     public UserPrincipal convert(DecodedJWT jwt) {
+        var typeClaim = jwt.getClaim("type");
+        if (!typeClaim.isNull() && !typeClaim.isMissing() && "environment".equals(typeClaim.asString())) {
+            return UserPrincipal.builder()
+                .userId(UUID.fromString(jwt.getClaim("ownerId").asString()))
+                .environmentId(UUID.fromString(jwt.getSubject()))
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_AGENT")))
+                .build();
+        }
+
         return UserPrincipal.builder()
             .userId(UUID.fromString(jwt.getSubject()))
             .email(jwt.getClaim("email").asString())

@@ -13,6 +13,7 @@ import dk.viplev.api.port.outbound.db.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,22 +38,24 @@ public class EnvironmentServiceImpl implements EnvironmentService {
     }
 
     @Override
+    @Transactional
     public EnvironmentDTO createEnvironment(EnvironmentDTO request) {
         UUID ownerId = authService.getAuthenticatedUserId();
         User owner = userRepository.getReferenceById(ownerId);
 
-        UUID environmentId = UUID.randomUUID();
-        String token = jwtIssuer.issueEnvironmentToken(environmentId, ownerId);
+        UUID envId = UUID.randomUUID();
+        String token = jwtIssuer.issueEnvironmentToken(envId, ownerId);
 
         Environment environment = new Environment();
-        environment.setId(environmentId);
+        environment.setId(envId);
         environment.setName(request.getName());
         environment.setDescription(request.getDescription());
         environment.setType(request.getType().getValue());
-        environment.setToken(token);
         environment.setOwner(owner);
+        environment.setToken(token);
 
-        Environment saved = environmentRepository.save(environment);
+        Environment saved = environmentRepository.saveAndFlush(environment);
+
         return environmentMapper.toDto(saved);
     }
 

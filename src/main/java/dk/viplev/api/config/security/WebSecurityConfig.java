@@ -2,6 +2,7 @@ package dk.viplev.api.config.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,11 +41,18 @@ public class WebSecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/").permitAll()
-				.requestMatchers("/swagger-ui/**").permitAll()
-				.requestMatchers("/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/v1/auth/login").permitAll()
-				.anyRequest().authenticated()
+                // Agent-only endpoints
+                .requestMatchers(HttpMethod.POST, "/v1/environments/*/services").hasRole("AGENT")
+                .requestMatchers(HttpMethod.GET, "/v1/environments/*/message").hasRole("AGENT")
+                .requestMatchers(HttpMethod.POST, "/v1/environments/*/benchmarks/*/runs/*/metrics/resource").hasRole("AGENT")
+                .requestMatchers(HttpMethod.POST, "/v1/environments/*/benchmarks/*/runs/*/metrics/performance").hasRole("AGENT")
+                .requestMatchers(HttpMethod.POST, "/v1/environments/*/benchmarks/*/runs/*/status").hasRole("AGENT")
+                // All other endpoints require USER role
+                .anyRequest().hasRole("USER")
             )
 
             .exceptionHandling(exceptions -> exceptions
