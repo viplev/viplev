@@ -70,8 +70,9 @@ Liquibase seeds 6 users (changeset 3). All have password `password`.
 - **Test**: H2 (PostgreSQL-compatible mode)
 - **Migrations**: Liquibase — `src/main/resources/db/migrations/`
   - Changelog: `liquibase.yaml`
-  - SQL files: `changes/` and `rollback/`
+  - SQL files: `changes/`
   - New migrations: add SQL file + changeSet in `liquibase.yaml`
+  - No rollback files — we don't use Liquibase rollbacks
 
 ## Error Handling
 - RFC 7807 Problem Details format via `ErrorDTO`
@@ -89,6 +90,21 @@ Liquibase seeds 6 users (changeset 3). All have password `password`.
 - Use a MCP tool for accessing github.
 - The user will only write simple tasks in github issue, I then have to use planmode to explode those issues, and evolve on the issue, together with the user, so that the explanation in the issue is as precise as possible.
 - The user will tell me to implement when he's ready, no need for me asking if i should implement an issue.
+
+## Git
+- **Always run `git pull` before starting any work, and before committing/pushing** — the user works from multiple machines.
+- When creating commit messages, follow semantic release conventions.
+- Never mention Claude/AI in commits, PRs, or generated content.
+
+## GitHub Pull Requests
+- When creating a pull request mark the issue in end of the PR title like this (#1)
+- When fixing review comments on a PR: after pushing the fix, reply to each resolved comment on GitHub explaining what was done to address it. Use the MCP tools to post the reply directly on the review comment thread.
+
+## Git Branches
+- When developing code based on a github issue, always create a branch with the name of the issue.
+- If the issue has a title like this: "Implement POST endpoint for services" and the issue number is #1.
+- Name the new branch as follow 1-implement-post-endpoint-for-services
+- Start with the issue number, followed by the name in lowercase and kebab-case formatting.
 
 ## Conventions
 - Lombok: `@RequiredArgsConstructor`, `@Getter`, `@Setter`, `@Slf4j`
