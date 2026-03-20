@@ -6,7 +6,6 @@ import dk.viplev.api.port.inbound.EnvironmentService;
 import dk.viplev.api.port.inbound.ServiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +28,7 @@ public class EnvironmentApiDelegateImpl implements EnvironmentApiDelegate {
     @Override
     public ResponseEntity<EnvironmentDTO> createEnvironment(EnvironmentDTO environmentDTO) {
         EnvironmentDTO created = environmentService.createEnvironment(environmentDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(created);
     }
 
     @Override

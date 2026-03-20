@@ -65,10 +65,25 @@ class ServiceApiDelegateImplIT {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
-    private String buildRegistrationJson(String hostName, List<Map<String, Object>> services) throws Exception {
-        return objectMapper.writeValueAsString(Map.of(
-                "hostName", hostName,
-                "services", services));
+    private Map<String, Object> buildRegistration(List<Map<String, Object>> services) {
+        return Map.of(
+                "host", Map.of(
+                        "name", "test-host",
+                        "machineId", "abc123def456",
+                        "os", "Linux",
+                        "ipAddress", "192.168.1.100"
+                ),
+                "services", services
+        );
+    }
+
+    private void registerServices(String envId, String envToken, List<Map<String, Object>> services) throws Exception {
+        String json = objectMapper.writeValueAsString(buildRegistration(services));
+        mockMvc.perform(post("/v1/environments/" + envId + "/services")
+                        .header("Authorization", "Bearer " + envToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -77,18 +92,10 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        // Register services via agent (host auto-created)
-        String registrationJson = buildRegistrationJson("test-host", List.of(
+        registerServices(envId, envToken, List.of(
                 Map.of("serviceName", "svc-list-1", "imageName", "nginx:latest"),
                 Map.of("serviceName", "svc-list-2", "imageName", "redis:7")));
 
-        mockMvc.perform(post("/v1/environments/" + envId + "/services")
-                        .header("Authorization", "Bearer " + envToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationJson))
-                .andExpect(status().isCreated());
-
-        // List services as user
         mockMvc.perform(get("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + user1Token))
                 .andExpect(status().isOk())
@@ -103,16 +110,9 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        String registrationJson = buildRegistrationJson("test-host", List.of(
+        registerServices(envId, envToken, List.of(
                 Map.of("serviceName", "svc-get-single", "imageName", "nginx:latest")));
 
-        mockMvc.perform(post("/v1/environments/" + envId + "/services")
-                        .header("Authorization", "Bearer " + envToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registrationJson))
-                .andExpect(status().isCreated());
-
-        // Get the service ID from the list
         MvcResult listResult = mockMvc.perform(get("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + user1Token))
                 .andExpect(status().isOk())
@@ -133,7 +133,6 @@ class ServiceApiDelegateImplIT {
         JsonNode env = createEnvironmentAndGetResponse("Private Service Env", user1Token);
         String envId = env.get("id").asText();
 
-        // user2 should get 404
         mockMvc.perform(get("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + user2Token))
                 .andExpect(status().isNotFound());
@@ -145,34 +144,19 @@ class ServiceApiDelegateImplIT {
         String envId = env.get("id").asText();
         String envToken = env.get("token").asText();
 
-        // First registration: 2 services
-        String firstBatch = buildRegistrationJson("test-host", List.of(
+        registerServices(envId, envToken, List.of(
                 Map.of("serviceName", "svc-sync-a", "imageName", "nginx:1.0"),
                 Map.of("serviceName", "svc-sync-b", "imageName", "redis:6")));
 
-        mockMvc.perform(post("/v1/environments/" + envId + "/services")
-                        .header("Authorization", "Bearer " + envToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(firstBatch))
-                .andExpect(status().isCreated());
-
-        // Second registration: update one, add one, remove one
-        String secondBatch = buildRegistrationJson("test-host", List.of(
+        registerServices(envId, envToken, List.of(
                 Map.of("serviceName", "svc-sync-a", "imageName", "nginx:2.0"),
                 Map.of("serviceName", "svc-sync-c", "imageName", "postgres:15")));
 
-        mockMvc.perform(post("/v1/environments/" + envId + "/services")
-                        .header("Authorization", "Bearer " + envToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(secondBatch))
-                .andExpect(status().isCreated());
-
-        // Verify: svc-sync-a updated, svc-sync-b deleted, svc-sync-c added
         mockMvc.perform(get("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + user1Token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-a')].imageName", hasItem("nginx:2.0")))
+                .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-a')].imageName").value(hasItem("nginx:2.0")))
                 .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-c')]").exists())
                 .andExpect(jsonPath("$[?(@.serviceName == 'svc-sync-b')]").doesNotExist());
     }

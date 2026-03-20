@@ -37,7 +37,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getUsername() {
-        return this.email;
+        return this.email != null ? this.email : this.environmentId.toString();
     }
 
     @Override

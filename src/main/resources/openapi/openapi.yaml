@@ -1408,6 +1408,11 @@ components:
 
     HostDTO:
       type: object
+      required:
+        - name
+        - machineId
+        - os
+        - ipAddress
       properties:
         id:
           type: string
@@ -1419,6 +1424,9 @@ components:
         name:
           type: string
           description: Hostname
+        machineId:
+          type: string
+          description: Unique machine identifier (e.g. /etc/machine-id on Linux)
         ipAddress:
           type: string
           description: IP address of the host
@@ -1451,12 +1459,11 @@ components:
     ServiceRegistrationDTO:
       type: object
       required:
-        - hostName
+        - host
         - services
       properties:
-        hostName:
-          type: string
-          description: Hostname of the agent's machine
+        host:
+          $ref: '#/components/schemas/HostDTO'
         services:
           type: array
           items:
@@ -1464,6 +1471,8 @@ components:
 
     ServiceDTO:
       type: object
+      required:
+        - serviceName
       properties:
         id:
           type: string

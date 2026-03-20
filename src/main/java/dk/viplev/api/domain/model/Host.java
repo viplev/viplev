@@ -15,7 +15,7 @@ import lombok.Setter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "hosts", uniqueConstraints = @UniqueConstraint(columnNames = {"environment_id", "name"}))
+@Table(name = "hosts", uniqueConstraints = @UniqueConstraint(columnNames = {"environment_id", "machine_id"}))
 @Getter
 @Setter
 public class Host {
@@ -30,6 +30,9 @@ public class Host {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "machine_id")
+    private String machineId;
 
     @Column(name = "ip_address")
     private String ipAddress;

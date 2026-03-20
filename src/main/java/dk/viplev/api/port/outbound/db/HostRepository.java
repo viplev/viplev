@@ -11,5 +11,5 @@ public interface HostRepository extends JpaRepository<Host, UUID> {
 
     List<Host> findByEnvironmentId(UUID environmentId);
 
-    Optional<Host> findByEnvironmentIdAndName(UUID environmentId, String name);
+    Optional<Host> findByEnvironmentIdAndMachineId(UUID environmentId, String machineId);
 }
