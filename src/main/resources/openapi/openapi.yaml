@@ -943,13 +943,13 @@ components:
             $ref: '#/components/schemas/ErrorDTO'
           examples:
             conflict:
-              summary: State conflict
+              summary: Resource state conflict
               value:
                 type: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
-                title: Conflict - Benchmark already has an active run
+                title: Conflict - Resource state conflict
                 status: 409
-                detail: Benchmark already has an active run
-                instance: /v1/environments/123/benchmarks/456/start
+                detail: The requested action conflicts with the current state of the resource
+                instance: /v1/environments/123
     500InternalServerError:
       description: Internal server error
       content:
