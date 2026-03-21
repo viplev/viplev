@@ -13,6 +13,7 @@ import dk.viplev.api.domain.model.BenchmarkRunStatus;
 import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.MetricResourceHost;
 import dk.viplev.api.domain.model.MetricResourceService;
+import dk.viplev.api.domain.model.Service;
 import dk.viplev.api.port.inbound.AgentService;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
@@ -22,7 +23,6 @@ import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -31,8 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class AgentServiceImpl implements AgentService {
 
@@ -98,29 +100,47 @@ public class AgentServiceImpl implements AgentService {
                     "Cannot store metrics for a run with status " + run.getStatus());
         }
 
-        if (dto.getHosts() != null && !dto.getHosts().isEmpty()) {
-            List<MetricResourceHost> hostMetrics = new ArrayList<>();
-            for (MetricResourceHostDTO hostMetricDto : dto.getHosts()) {
-                Host host = hostRepository.findByIdAndEnvironmentId(hostMetricDto.getHostId(), environmentId)
-                        .orElseThrow(() -> new NotFoundException("Host not found",
-                                "Host with id " + hostMetricDto.getHostId() + " not found in environment"));
-                hostMetrics.add(new MetricResourceHost(
-                        run, host, hostMetricDto.getCollectedAt(),
-                        hostMetricDto.getCpuPercentage(), hostMetricDto.getMemoryUsageBytes(),
-                        hostMetricDto.getMemoryLimitBytes(), hostMetricDto.getNetworkInBytes(),
-                        hostMetricDto.getNetworkOutBytes(), hostMetricDto.getBlockInBytes(),
-                        hostMetricDto.getBlockOutBytes()));
-            }
-            metricResourceHostRepository.saveAll(hostMetrics);
-        }
+        // Host metrics — agent sends metrics for a single host, so one lookup is sufficient
+        UUID hostId = dto.getHosts().get(0).getHostId();
+        Host host = hostRepository.findByIdAndEnvironmentId(hostId, environmentId)
+                .orElseThrow(() -> new NotFoundException("Host not found",
+                        "Host with id " + hostId + " not found in environment"));
 
+        List<MetricResourceHost> hostMetrics = new ArrayList<>();
+        for (MetricResourceHostDTO hostMetricDto : dto.getHosts()) {
+            hostMetrics.add(new MetricResourceHost(
+                    run, host, hostMetricDto.getCollectedAt(),
+                    hostMetricDto.getCpuPercentage(), hostMetricDto.getMemoryUsageBytes(),
+                    hostMetricDto.getMemoryLimitBytes(), hostMetricDto.getNetworkInBytes(),
+                    hostMetricDto.getNetworkOutBytes(), hostMetricDto.getBlockInBytes(),
+                    hostMetricDto.getBlockOutBytes()));
+        }
+        metricResourceHostRepository.saveAll(hostMetrics);
+
+        // Service metrics — batch-fetch all unique services in one query
         if (dto.getServices() != null && !dto.getServices().isEmpty()) {
+            Set<UUID> serviceIds = dto.getServices().stream()
+                    .map(MetricResourceServiceDTO::getServiceId)
+                    .collect(Collectors.toSet());
+
+            Map<UUID, Service> servicesById = serviceRepository.findAllById(serviceIds).stream()
+                    .collect(Collectors.toMap(Service::getId, Function.identity()));
+
+            for (UUID id : serviceIds) {
+                if (!servicesById.containsKey(id)) {
+                    throw new NotFoundException("Service not found",
+                            "Service with id " + id + " not found");
+                }
+                Service svc = servicesById.get(id);
+                if (!svc.getHost().getEnvironment().getId().equals(environmentId)) {
+                    throw new NotFoundException("Service not found",
+                            "Service with id " + id + " not found in environment");
+                }
+            }
+
             List<MetricResourceService> serviceMetrics = new ArrayList<>();
             for (MetricResourceServiceDTO serviceMetricDto : dto.getServices()) {
-                dk.viplev.api.domain.model.Service service = serviceRepository.findByIdAndHostEnvironmentId(
-                                serviceMetricDto.getServiceId(), environmentId)
-                        .orElseThrow(() -> new NotFoundException("Service not found",
-                                "Service with id " + serviceMetricDto.getServiceId() + " not found in environment"));
+                Service service = servicesById.get(serviceMetricDto.getServiceId());
                 serviceMetrics.add(new MetricResourceService(
                         run, service, serviceMetricDto.getCollectedAt(),
                         serviceMetricDto.getCpuPercentage(), serviceMetricDto.getMemoryUsageBytes(),

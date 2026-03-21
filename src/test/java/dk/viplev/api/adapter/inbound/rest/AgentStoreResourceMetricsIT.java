@@ -97,7 +97,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(null, List.of(serviceMetric(serviceId)))))
+                        .content(metricsBody(List.of(hostMetric(hostId)), List.of(serviceMetric(serviceId)))))
                 .andExpect(status().isCreated());
 
         assertThat(metricResourceServiceRepository.count()).isEqualTo(countBefore + 1);
@@ -137,7 +137,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(null, List.of(serviceMetric(UUID.randomUUID())))))
+                        .content(metricsBody(List.of(hostMetric(hostId)), List.of(serviceMetric(UUID.randomUUID())))))
                 .andExpect(status().isNotFound());
     }
 
@@ -202,7 +202,7 @@ class AgentStoreResourceMetricsIT {
     private Map<String, Object> hostMetric(UUID hostId) {
         return Map.of(
                 "hostId", hostId.toString(),
-                "collectedAt", "2025-01-15T10:00:00Z",
+                "collectedAt", "2025-01-15T10:00:00",
                 "cpuPercentage", 45.5,
                 "memoryUsageBytes", 1073741824.0,
                 "memoryLimitBytes", 2147483648.0,
@@ -216,7 +216,7 @@ class AgentStoreResourceMetricsIT {
     private Map<String, Object> serviceMetric(UUID serviceId) {
         return Map.of(
                 "serviceId", serviceId.toString(),
-                "collectedAt", "2025-01-15T10:00:00Z",
+                "collectedAt", "2025-01-15T10:00:00",
                 "cpuPercentage", 30.2,
                 "memoryUsageBytes", 536870912.0,
                 "memoryLimitBytes", 1073741824.0,
