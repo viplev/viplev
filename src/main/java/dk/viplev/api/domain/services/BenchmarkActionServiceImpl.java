@@ -50,7 +50,8 @@ public class BenchmarkActionServiceImpl implements BenchmarkActionService {
 
         boolean hasActiveRun = benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(benchmarkId, ACTIVE_STATUSES);
         if (hasActiveRun) {
-            throw new ConflictException("Benchmark already has an active run");
+            throw new ConflictException("Benchmark already has an active run",
+                    "Benchmark " + benchmarkId + " already has an active run");
         }
 
         UUID userId = authService.getAuthenticatedUserId();

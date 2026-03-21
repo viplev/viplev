@@ -534,6 +534,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
         '409':
           $ref: '#/components/responses/409Conflict'
         '401':
@@ -576,6 +578,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
         '409':
           $ref: '#/components/responses/409Conflict'
         '401':
@@ -941,11 +945,11 @@ components:
             conflict:
               summary: State conflict
               value:
-                type: /errors/conflict
-                title: Conflict
+                type: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
+                title: Conflict - Benchmark already has an active run
                 status: 409
                 detail: Benchmark already has an active run
-                instance: /v1/environments/{environmentId}/benchmarks/{benchmarkId}/start
+                instance: /v1/environments/123/benchmarks/456/start
     500InternalServerError:
       description: Internal server error
       content:
