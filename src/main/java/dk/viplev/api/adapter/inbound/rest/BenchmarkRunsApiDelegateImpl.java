@@ -3,7 +3,6 @@ package dk.viplev.api.adapter.inbound.rest;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.port.inbound.BenchmarkRunService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +11,6 @@ import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class BenchmarkRunsApiDelegateImpl implements BenchmarkRunsApiDelegate {
 
     private final BenchmarkRunService benchmarkRunService;

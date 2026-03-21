@@ -24,7 +24,6 @@ import dk.viplev.api.domain.model.Benchmark;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
-import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.UserRepository;
 
 import java.util.UUID;
@@ -44,9 +43,6 @@ class BenchmarkRunsApiDelegateImplIT {
 
     @Autowired
     private BenchmarkRepository benchmarkRepository;
-
-    @Autowired
-    private EnvironmentRepository environmentRepository;
 
     @Autowired
     private UserRepository userRepository;
