@@ -104,3 +104,10 @@ databaseChangeLog:
         - sqlFile:
             path: changes/015-alter-services-composite-unique-constraint.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 16
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/016-add-cascade-delete-to-metric-tables.sql
+            relativeToChangelogFile: true

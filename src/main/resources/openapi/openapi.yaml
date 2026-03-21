@@ -1120,11 +1120,6 @@ components:
           format: date-time
           readOnly: true
           description: Timestamp when run was created
-        updatedAt:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Timestamp when run was last updated
 
     BenchmarkRunRawDTO:
       type: object
