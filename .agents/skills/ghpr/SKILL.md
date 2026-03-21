@@ -47,7 +47,7 @@ When implementation is complete:
 
 Once the user says yes:
 
-1. Stage and commit with a semantic commit message (do NOT mention Claude/AI).
+1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Derive the commit type from the linked issue's GitHub labels (see `## Git Commits` in CLAUDE.md).
 2. Push the branch: `git push`
 3. Use MCP tools to reply to each Copilot review comment on GitHub, explaining what was done to address it.
 4. Inform the user that all comments have been replied to, and they can now request a new review or merge.

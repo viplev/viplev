@@ -51,7 +51,7 @@ When implementation is complete:
 
 Once the user says yes:
 
-1. Stage and commit with a semantic commit message (do NOT mention Claude/AI).
+1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Derive the commit type from the issue's GitHub labels (see `## Git Commits` in CLAUDE.md).
 2. Push the branch: `git push -u origin <branch-name>`
 3. Create a PR using `gh pr create`:
    - Title: short description ending with `(#<issue-number>)`

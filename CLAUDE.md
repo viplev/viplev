@@ -93,8 +93,18 @@ Liquibase seeds 6 users (changeset 3). All have password `password`.
 
 ## Git
 - **Always run `git pull` before starting any work, and before committing/pushing** — the user works from multiple machines.
-- When creating commit messages, follow semantic release conventions.
 - Never mention Claude/AI in commits, PRs, or generated content.
+
+## Git Commits
+Follow semantic release conventions. The commit type is determined as follows:
+
+- Changes to `.agents/` or `.claude/` → always `chore(<optional scope>): ...`
+- Issue-driven work → derive the type from the issue's GitHub labels:
+  - `bug` label → `fix(<scope>): ...`
+  - `enhancement` or `feature` label → `feat(<scope>): ...`
+  - `documentation` label → `docs(<scope>): ...`
+  - No matching label → `chore(<scope>): ...`
+- If an issue has multiple labels, `bug` (fix) takes priority over `enhancement`/`feature` (feat).
 
 ## GitHub Pull Requests
 - When creating a pull request mark the issue in end of the PR title like this (#1)
