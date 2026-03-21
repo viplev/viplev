@@ -51,9 +51,14 @@ When implementation is complete:
 
 Once the user says yes:
 
-1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Derive the commit type from the issue's GitHub labels (see `## Git Commits` in CLAUDE.md).
+1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Determine the commit type from the issue's GitHub labels:
+   - `bug` label → `fix(<scope>): ...`
+   - `enhancement` or `feature` label → `feat(<scope>): ...`
+   - `documentation` label → `docs(<scope>): ...`
+   - If multiple labels match, `bug` (fix) takes priority over `enhancement`/`feature` (feat).
+   - **If the issue has no matching label**, **ask the user** what commit type to use — do not silently default to `chore`.
 2. Push the branch: `git push -u origin <branch-name>`
 3. Create a PR using `gh pr create`:
-   - Title: short description ending with `(#<issue-number>)`
+   - Title: use the same semantic prefix as the commit message, ending with `(#<issue-number>)` — e.g. `feat(agent): implement store metrics endpoint (#12)`
    - Body must start with `Closes #<issue-number>` on the first line
    - Include a summary of changes and test plan
