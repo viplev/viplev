@@ -536,6 +536,8 @@ paths:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '409':
+          $ref: '#/components/responses/409Conflict'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -568,7 +570,7 @@ paths:
         - Benchmark Actions
       summary: Stop a benchmark run
       operationId: stopBenchmarkRun
-      description: Stops an ongoing benchmark run. Returns 400 if the run is not in a stoppable state.
+      description: Stops an ongoing benchmark run. Returns 409 if the run is not in a stoppable state.
       responses:
         '200':
           description: Benchmark run stopped
@@ -578,6 +580,8 @@ paths:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '409':
+          $ref: '#/components/responses/409Conflict'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -930,6 +934,21 @@ components:
                 title: Not Found
                 status: 404
                 detail: Resource with id '123' not found
+                instance: /v1/environments/123
+    409Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+          examples:
+            conflict:
+              summary: Resource state conflict
+              value:
+                type: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
+                title: Conflict - Resource state conflict
+                status: 409
+                detail: The requested action conflicts with the current state of the resource
                 instance: /v1/environments/123
     500InternalServerError:
       description: Internal server error

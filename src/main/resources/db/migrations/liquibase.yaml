@@ -111,3 +111,14 @@ databaseChangeLog:
         - sqlFile:
             path: changes/016-add-cascade-delete-to-metric-tables.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 17
+      author: viplev
+      preconditions:
+        onFail: MARK_RAN
+        dbms:
+          type: postgresql
+      changes:
+        - sqlFile:
+            path: changes/017-add-active-run-partial-unique-index.sql
+            relativeToChangelogFile: true
