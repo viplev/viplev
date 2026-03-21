@@ -109,7 +109,6 @@ class BenchmarkRunsApiDelegateImplIT {
         User user = userRepository.findByEmail(userEmail).orElseThrow();
 
         BenchmarkRun run = new BenchmarkRun();
-        run.setId(UUID.randomUUID());
         run.setBenchmark(benchmark);
         run.setStartedByUser(user);
         run.setStatus(BenchmarkRunStatus.PENDING_START);

@@ -534,8 +534,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
-        '400':
-          $ref: '#/components/responses/400BadRequest'
+        '409':
+          $ref: '#/components/responses/409Conflict'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -568,7 +568,7 @@ paths:
         - Benchmark Actions
       summary: Stop a benchmark run
       operationId: stopBenchmarkRun
-      description: Stops an ongoing benchmark run. Returns 400 if the run is not in a stoppable state.
+      description: Stops an ongoing benchmark run. Returns 409 if the run is not in a stoppable state.
       responses:
         '200':
           description: Benchmark run stopped
@@ -576,8 +576,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BenchmarkStatusDTO'
-        '400':
-          $ref: '#/components/responses/400BadRequest'
+        '409':
+          $ref: '#/components/responses/409Conflict'
         '401':
           $ref: '#/components/responses/401Unauthorized'
         '404':
@@ -931,6 +931,21 @@ components:
                 status: 404
                 detail: Resource with id '123' not found
                 instance: /v1/environments/123
+    409Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDTO'
+          examples:
+            conflict:
+              summary: State conflict
+              value:
+                type: /errors/conflict
+                title: Conflict
+                status: 409
+                detail: Benchmark already has an active run
+                instance: /v1/environments/{environmentId}/benchmarks/{benchmarkId}/start
     500InternalServerError:
       description: Internal server error
       content:
