@@ -2,6 +2,7 @@ package dk.viplev.api.adapter.inbound.rest;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunStatusUpdateDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricPerformanceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
 import dk.viplev.api.port.inbound.AgentService;
@@ -37,6 +38,12 @@ public class AgentApiDelegateImpl implements AgentApiDelegate {
     @Override
     public ResponseEntity<Void> storeResourceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricResourceDTO metricResourceDTO) {
         agentService.storeResourceMetrics(environmentId, benchmarkId, runId, metricResourceDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @Override
+    public ResponseEntity<Void> storePerformanceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricPerformanceDTO metricPerformanceDTO) {
+        agentService.storePerformanceMetrics(environmentId, benchmarkId, runId, metricPerformanceDTO);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
