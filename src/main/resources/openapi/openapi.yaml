@@ -1625,6 +1625,16 @@ components:
 
     MetricK6HttpDTO:
       type: object
+      required:
+        - collectedAt
+        - url
+        - httpMethod
+        - httpStatus
+        - expectedStatus
+        - dataReceivedByte
+        - dataSentByte
+        - httpReqDurationMs
+        - httpReqWaitingMs
       properties:
         id:
           type: string
@@ -1667,6 +1677,9 @@ components:
 
     MetricK6VusDTO:
       type: object
+      required:
+        - collectedAt
+        - vus
       properties:
         id:
           type: string

@@ -182,7 +182,7 @@ public class AgentServiceImpl implements AgentService {
             for (MetricK6HttpDTO httpDto : dto.getHttpMetrics()) {
                 httpMetrics.add(new MetricK6Http(
                         run, httpDto.getCollectedAt(), httpDto.getUrl(),
-                        httpDto.getHttpMethod() != null ? httpDto.getHttpMethod().getValue() : null,
+                        httpDto.getHttpMethod().getValue(),
                         httpDto.getRequestGroup(), httpDto.getHttpStatus(),
                         httpDto.getExpectedStatus(), httpDto.getDataReceivedByte(),
                         httpDto.getDataSentByte(), httpDto.getHttpReqDurationMs(),
