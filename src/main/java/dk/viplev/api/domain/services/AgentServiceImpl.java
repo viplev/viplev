@@ -2,6 +2,9 @@ package dk.viplev.api.domain.services;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunStatusUpdateDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricK6HttpDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricK6VusDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricPerformanceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceHostDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
@@ -11,6 +14,8 @@ import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.model.BenchmarkRun;
 import dk.viplev.api.domain.model.BenchmarkRunStatus;
 import dk.viplev.api.domain.model.Host;
+import dk.viplev.api.domain.model.MetricK6Http;
+import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
 import dk.viplev.api.domain.model.MetricResourceService;
 import dk.viplev.api.domain.model.Service;
@@ -19,6 +24,8 @@ import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
+import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
+import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
@@ -50,6 +57,8 @@ public class AgentServiceImpl implements AgentService {
     private final ServiceRepository serviceRepository;
     private final MetricResourceHostRepository metricResourceHostRepository;
     private final MetricResourceServiceRepository metricResourceServiceRepository;
+    private final MetricK6HttpRepository metricK6HttpRepository;
+    private final MetricK6VusRepository metricK6VusRepository;
     private final AuthService authService;
     private final BenchmarkRunMapper benchmarkRunMapper;
 
@@ -149,6 +158,45 @@ public class AgentServiceImpl implements AgentService {
                         serviceMetricDto.getBlockOutBytes()));
             }
             metricResourceServiceRepository.saveAll(serviceMetrics);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void storePerformanceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricPerformanceDTO dto) {
+        validateEnvironmentAccess(environmentId);
+
+        benchmarkRepository.findByIdAndEnvironmentId(benchmarkId, environmentId)
+                .orElseThrow(() -> new NotFoundException("Benchmark not found"));
+
+        BenchmarkRun run = benchmarkRunRepository.findByIdAndBenchmarkId(runId, benchmarkId)
+                .orElseThrow(() -> new NotFoundException("Benchmark run not found"));
+
+        if (run.getStatus() != BenchmarkRunStatus.STARTED) {
+            throw new BadRequestException("Run is not active",
+                    "Cannot store metrics for a run with status " + run.getStatus());
+        }
+
+        if (dto.getHttpMetrics() != null && !dto.getHttpMetrics().isEmpty()) {
+            List<MetricK6Http> httpMetrics = new ArrayList<>();
+            for (MetricK6HttpDTO httpDto : dto.getHttpMetrics()) {
+                httpMetrics.add(new MetricK6Http(
+                        run, httpDto.getCollectedAt(), httpDto.getUrl(),
+                        httpDto.getHttpMethod().getValue(),
+                        httpDto.getRequestGroup(), httpDto.getHttpStatus(),
+                        httpDto.getExpectedStatus(), httpDto.getDataReceivedByte(),
+                        httpDto.getDataSentByte(), httpDto.getHttpReqDurationMs(),
+                        httpDto.getHttpReqWaitingMs()));
+            }
+            metricK6HttpRepository.saveAll(httpMetrics);
+        }
+
+        if (dto.getVusMetrics() != null && !dto.getVusMetrics().isEmpty()) {
+            List<MetricK6Vus> vusMetrics = new ArrayList<>();
+            for (MetricK6VusDTO vusDto : dto.getVusMetrics()) {
+                vusMetrics.add(new MetricK6Vus(run, vusDto.getCollectedAt(), vusDto.getVus()));
+            }
+            metricK6VusRepository.saveAll(vusMetrics);
         }
     }
 
