@@ -1523,6 +1523,9 @@ components:
 
     MetricResourceServiceDTO:
       type: object
+      required:
+        - serviceId
+        - collectedAt
       properties:
         id:
           type: string
@@ -1571,6 +1574,9 @@ components:
 
     MetricResourceHostDTO:
       type: object
+      required:
+        - hostId
+        - collectedAt
       properties:
         id:
           type: string
@@ -1692,6 +1698,8 @@ components:
     MetricResourceDTO:
       type: object
       description: Wrapper for resource metrics sent by the agent
+      required:
+        - hosts
       properties:
         services:
           type: array
