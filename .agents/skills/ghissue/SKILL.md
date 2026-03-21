@@ -7,7 +7,6 @@ argument-hint: "[issue-number]"
 # GitHub Issue Workflow
 
 Work on GitHub issue #$ARGUMENTS following this strict multi-phase flow.
-The repo is `viplev/viplev` on GitHub.
 
 ## Phase 1: Read & Plan
 
