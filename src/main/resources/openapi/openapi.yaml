@@ -1521,24 +1521,11 @@ components:
           format: int64
           description: Memory reservation in bytes
 
-    MetricResourceServiceDTO:
+    MetricDataPointDTO:
       type: object
       required:
-        - serviceId
         - collectedAt
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-          examples:
-            - "e5f6a7b8-c9d0-1234-ef01-234567890abc"
-        serviceId:
-          type: string
-          format: uuid
-          description: ID of the service
-          examples:
-            - "d4e5f6a7-b8c9-0123-def0-1234567890ab"
         collectedAt:
           type: string
           format: date-time
@@ -1575,53 +1562,30 @@ components:
     MetricResourceHostDTO:
       type: object
       required:
-        - hostId
-        - collectedAt
+        - machineId
+        - metrics
       properties:
-        id:
+        machineId:
           type: string
-          format: uuid
-          readOnly: true
-          examples:
-            - "f6a7b8c9-d0e1-2345-f012-34567890abcd"
-        hostId:
+          description: Machine identifier known by the agent
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricDataPointDTO'
+
+    MetricResourceServiceDTO:
+      type: object
+      required:
+        - serviceName
+        - metrics
+      properties:
+        serviceName:
           type: string
-          format: uuid
-          description: ID of the host
-          examples:
-            - "c3d4e5f6-a7b8-9012-cdef-123456789012"
-        collectedAt:
-          type: string
-          format: date-time
-          description: Timestamp when metric was collected
-        cpuPercentage:
-          type: number
-          format: double
-          description: CPU usage percentage
-        memoryUsageBytes:
-          type: number
-          format: double
-          description: Memory usage in bytes
-        memoryLimitBytes:
-          type: number
-          format: double
-          description: Memory limit in bytes
-        networkInBytes:
-          type: number
-          format: double
-          description: Network bytes received
-        networkOutBytes:
-          type: number
-          format: double
-          description: Network bytes sent
-        blockInBytes:
-          type: number
-          format: double
-          description: Block I/O bytes read
-        blockOutBytes:
-          type: number
-          format: double
-          description: Block I/O bytes written
+          description: Docker service name known by the agent
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricDataPointDTO'
 
     MetricK6HttpDTO:
       type: object
@@ -1712,16 +1676,14 @@ components:
       type: object
       description: Wrapper for resource metrics sent by the agent
       required:
-        - hosts
+        - host
       properties:
+        host:
+          $ref: '#/components/schemas/MetricResourceHostDTO'
         services:
           type: array
           items:
             $ref: '#/components/schemas/MetricResourceServiceDTO'
-        hosts:
-          type: array
-          items:
-            $ref: '#/components/schemas/MetricResourceHostDTO'
 
     MetricPerformanceDTO:
       type: object

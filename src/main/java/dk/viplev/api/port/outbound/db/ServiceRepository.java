@@ -14,4 +14,6 @@ public interface ServiceRepository extends JpaRepository<Service, UUID> {
     List<Service> findByHostId(UUID hostId);
 
     Optional<Service> findByIdAndHostEnvironmentId(UUID id, UUID environmentId);
+
+    Optional<Service> findByServiceNameAndHostId(String serviceName, UUID hostId);
 }
