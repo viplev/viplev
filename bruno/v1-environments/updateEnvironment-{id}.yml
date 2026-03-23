@@ -1,11 +1,18 @@
 info:
-  name: getEnvironment/{id}
+  name: updateEnvironment/{id}
   type: http
-  seq: 3
+  seq: 2
 
 http:
-  method: GET
+  method: PUT
   url: "{{http_url}}/v1/environments/{{environment_id}}"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "test",
+        "type": "docker"
+      }
   auth: inherit
 
 settings:

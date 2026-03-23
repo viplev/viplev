@@ -1,10 +1,10 @@
 info:
-  name: deleteEnvironment/{id}
+  name: getEnvironment/{id}
   type: http
-  seq: 5
+  seq: 2
 
 http:
-  method: DELETE
+  method: GET
   url: "{{http_url}}/v1/environments/{{environment_id}}"
   auth: inherit
 

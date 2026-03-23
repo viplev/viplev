@@ -1,0 +1,25 @@
+info:
+  name: Get a run
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{http_url}}/v1/environments/:environmentId/benchmarks/:benchmarkId/runs/:runId"
+  params:
+    - name: runId
+      value: ""
+      type: path
+    - name: benchmarkId
+      value: ""
+      type: path
+    - name: environmentId
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

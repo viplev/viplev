@@ -5,12 +5,12 @@ info:
 
 http:
   method: POST
-  url: http://localhost:8080/v1/auth/login
+  url: "{{http_url}}/v1/auth/login"
   body:
     type: json
     data: |-
       {
-        "email": "user1@viplev.dk",
+        "email": "admin1@viplev.dk",
         "password": "password"
       }
 

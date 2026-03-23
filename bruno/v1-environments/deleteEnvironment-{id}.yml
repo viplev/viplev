@@ -1,18 +1,11 @@
 info:
-  name: updateEnvironment/{id}
+  name: deleteEnvironment/{id}
   type: http
-  seq: 4
+  seq: 2
 
 http:
-  method: PUT
+  method: DELETE
   url: "{{http_url}}/v1/environments/{{environment_id}}"
-  body:
-    type: json
-    data: |-
-      {
-        "name": "test",
-        "type": "docker"
-      }
   auth: inherit
 
 settings:
