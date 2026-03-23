@@ -53,8 +53,8 @@ class AgentStoreResourceMetricsIT {
     private String environmentId;
     private String environmentToken;
     private String benchmarkId;
-    private UUID hostId;
-    private UUID serviceId;
+    private String machineId;
+    private String serviceName;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -69,10 +69,10 @@ class AgentStoreResourceMetricsIT {
         registerServices(environmentId, environmentToken);
 
         List<Host> hosts = hostRepository.findByEnvironmentId(UUID.fromString(environmentId));
-        hostId = hosts.get(0).getId();
+        machineId = hosts.get(0).getMachineId();
 
         List<Service> services = serviceRepository.findByHostEnvironmentId(UUID.fromString(environmentId));
-        serviceId = services.get(0).getId();
+        serviceName = services.get(0).getServiceName();
     }
 
     @Test
@@ -83,7 +83,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), null)))
+                        .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isCreated());
 
         assertThat(metricResourceHostRepository.count()).isEqualTo(countBefore + 1);
@@ -97,7 +97,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), List.of(serviceMetric(serviceId)))))
+                        .content(metricsBody(hostMetric(machineId), List.of(serviceMetric(serviceName)))))
                 .andExpect(status().isCreated());
 
         assertThat(metricResourceServiceRepository.count()).isEqualTo(countBefore + 1);
@@ -112,7 +112,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), List.of(serviceMetric(serviceId)))))
+                        .content(metricsBody(hostMetric(machineId), List.of(serviceMetric(serviceName)))))
                 .andExpect(status().isCreated());
 
         assertThat(metricResourceHostRepository.count()).isEqualTo(hostCountBefore + 1);
@@ -120,24 +120,24 @@ class AgentStoreResourceMetricsIT {
     }
 
     @Test
-    void shouldReturn404ForInvalidHostId() throws Exception {
+    void shouldReturn404ForInvalidMachineId() throws Exception {
         UUID runId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
 
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(UUID.randomUUID())), null)))
+                        .content(metricsBody(hostMetric("nonexistent-machine-id"), null)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void shouldReturn404ForInvalidServiceId() throws Exception {
+    void shouldReturn404ForInvalidServiceName() throws Exception {
         UUID runId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
 
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), List.of(serviceMetric(UUID.randomUUID())))))
+                        .content(metricsBody(hostMetric(machineId), List.of(serviceMetric("nonexistent-service")))))
                 .andExpect(status().isNotFound());
     }
 
@@ -146,7 +146,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, UUID.randomUUID().toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), null)))
+                        .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isNotFound());
     }
 
@@ -157,7 +157,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), null)))
+                        .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -172,7 +172,7 @@ class AgentStoreResourceMetricsIT {
         mockMvc.perform(post(metricsUrl(env2Id, benchmark2Id, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), null)))
+                        .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isNotFound());
     }
 
@@ -182,7 +182,7 @@ class AgentStoreResourceMetricsIT {
 
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(metricsBody(List.of(hostMetric(hostId)), null)))
+                        .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -192,38 +192,42 @@ class AgentStoreResourceMetricsIT {
         return "/v1/environments/" + envId + "/benchmarks/" + bmId + "/runs/" + runId + "/metrics/resource";
     }
 
-    private String metricsBody(List<Map<String, Object>> hosts, List<Map<String, Object>> services) throws Exception {
+    private String metricsBody(Map<String, Object> host, List<Map<String, Object>> services) throws Exception {
         Map<String, Object> body = new java.util.HashMap<>();
-        if (hosts != null) body.put("hosts", hosts);
+        body.put("host", host);
         if (services != null) body.put("services", services);
         return objectMapper.writeValueAsString(body);
     }
 
-    private Map<String, Object> hostMetric(UUID hostId) {
+    private Map<String, Object> hostMetric(String machineId) {
         return Map.of(
-                "hostId", hostId.toString(),
-                "collectedAt", "2025-01-15T10:00:00",
-                "cpuPercentage", 45.5,
-                "memoryUsageBytes", 1073741824.0,
-                "memoryLimitBytes", 2147483648.0,
-                "networkInBytes", 500000.0,
-                "networkOutBytes", 250000.0,
-                "blockInBytes", 100000.0,
-                "blockOutBytes", 50000.0
+                "machineId", machineId,
+                "metrics", List.of(Map.of(
+                        "collectedAt", "2025-01-15T10:00:00",
+                        "cpuPercentage", 45.5,
+                        "memoryUsageBytes", 1073741824.0,
+                        "memoryLimitBytes", 2147483648.0,
+                        "networkInBytes", 500000.0,
+                        "networkOutBytes", 250000.0,
+                        "blockInBytes", 100000.0,
+                        "blockOutBytes", 50000.0
+                ))
         );
     }
 
-    private Map<String, Object> serviceMetric(UUID serviceId) {
+    private Map<String, Object> serviceMetric(String serviceName) {
         return Map.of(
-                "serviceId", serviceId.toString(),
-                "collectedAt", "2025-01-15T10:00:00",
-                "cpuPercentage", 30.2,
-                "memoryUsageBytes", 536870912.0,
-                "memoryLimitBytes", 1073741824.0,
-                "networkInBytes", 200000.0,
-                "networkOutBytes", 100000.0,
-                "blockInBytes", 50000.0,
-                "blockOutBytes", 25000.0
+                "serviceName", serviceName,
+                "metrics", List.of(Map.of(
+                        "collectedAt", "2025-01-15T10:00:00",
+                        "cpuPercentage", 30.2,
+                        "memoryUsageBytes", 536870912.0,
+                        "memoryLimitBytes", 1073741824.0,
+                        "networkInBytes", 200000.0,
+                        "networkOutBytes", 100000.0,
+                        "blockInBytes", 50000.0,
+                        "blockOutBytes", 25000.0
+                ))
         );
     }
 
