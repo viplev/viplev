@@ -175,7 +175,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                             .map(this::toRawResourceDataPoint)
                             .toList());
                     return serviceDto;
-                }).toList());
+                }).sorted(Comparator.comparing(RawServiceTimeSeriesDTO::getServiceName)).toList());
             } else {
                 hostDto.setServices(List.of());
             }
@@ -416,7 +416,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                     serviceSummary.setResource(buildResourceSummaryFromService(sMetrics, percentileValues, pNames));
 
                     return serviceSummary;
-                }).toList();
+                }).sorted(Comparator.comparing(DerivedServiceSummaryDTO::getServiceName)).toList();
 
                 hostSummary.setServices(serviceSummaries);
             } else {
