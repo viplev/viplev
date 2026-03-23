@@ -1,0 +1,31 @@
+info:
+  name: /v1/.../runs/:id/status - Update run status
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{http_url}}/v1/environments/:environmentId/benchmarks/:benchmarkId/runs/:runId/status"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+    - name: benchmarkId
+      value: "{{benchmark_id}}"
+      type: path
+    - name: runId
+      value: "{{run_id}}"
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "status": "STARTED"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,26 @@
+info:
+  name: /v1/environments/:id - Update an environment
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{http_url}}/v1/environments/:environmentId"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{$randomAdjective}}-{{$randomNoun}}",
+        "type": "docker"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

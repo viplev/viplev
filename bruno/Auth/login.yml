@@ -1,16 +1,16 @@
 info:
-  name: login
+  name: /v1/auth/login - Login
   type: http
-  seq: 2
+  seq: 1
 
 http:
   method: POST
-  url: http://localhost:8080/v1/auth/login
+  url: "{{http_url}}/v1/auth/login"
   body:
     type: json
     data: |-
       {
-        "email": "user1@viplev.dk",
+        "email": "admin1@viplev.dk",
         "password": "password"
       }
 

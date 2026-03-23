@@ -1,0 +1,22 @@
+info:
+  name: /v1/environments/:id/services/:id - Get a single service
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{http_url}}/v1/environments/:environmentId/services/:serviceId"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+    - name: serviceId
+      value: "{{service_id}}"
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

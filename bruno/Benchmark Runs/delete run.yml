@@ -1,0 +1,25 @@
+info:
+  name: /v1/environments/:id/benchmarks/:id/runs/:id - Delete a run
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{http_url}}/v1/environments/:environmentId/benchmarks/:benchmarkId/runs/:runId"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+    - name: benchmarkId
+      value: "{{benchmark_id}}"
+      type: path
+    - name: runId
+      value: "{{run_id}}"
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

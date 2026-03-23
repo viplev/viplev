@@ -1,0 +1,19 @@
+info:
+  name: /v1/environments/:id - Delete an environment
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{http_url}}/v1/environments/:environmentId"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

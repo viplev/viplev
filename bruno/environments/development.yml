@@ -12,3 +12,9 @@ variables:
     value: "{{http_protocol}}://{{http_host}}:{{http_port}}"
   - name: environment_id
     value: ""
+  - secret: true
+    name: agent_access_token
+  - name: benchmark_id
+    value: ""
+  - name: run_id
+    value: ""

@@ -1,0 +1,56 @@
+info:
+  name: /v1/.../runs/:id/metrics/resource - Store resource metrics
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{http_url}}/v1/environments/:environmentId/benchmarks/:benchmarkId/runs/:runId/metrics/resource"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+    - name: benchmarkId
+      value: "{{benchmark_id}}"
+      type: path
+    - name: runId
+      value: "{{run_id}}"
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "hosts": [
+          {
+            "hostId": "REPLACE_WITH_HOST_ID",
+            "collectedAt": "2025-01-15T10:00:00",
+            "cpuPercentage": 45.5,
+            "memoryUsageBytes": 1073741824,
+            "memoryLimitBytes": 2147483648,
+            "networkInBytes": 500000,
+            "networkOutBytes": 250000,
+            "blockInBytes": 100000,
+            "blockOutBytes": 50000
+          }
+        ],
+        "services": [
+          {
+            "serviceId": "REPLACE_WITH_SERVICE_ID",
+            "collectedAt": "2025-01-15T10:00:00",
+            "cpuPercentage": 30.2,
+            "memoryUsageBytes": 536870912,
+            "memoryLimitBytes": 1073741824,
+            "networkInBytes": 200000,
+            "networkOutBytes": 100000,
+            "blockInBytes": 50000,
+            "blockOutBytes": 25000
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

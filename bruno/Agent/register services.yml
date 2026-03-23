@@ -1,0 +1,43 @@
+info:
+  name: /v1/environments/:id/services - Register services
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{http_url}}/v1/environments/:environmentId/services"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "host": {
+          "name": "my-host",
+          "machineId": "machine-001",
+          "os": "Linux",
+          "ipAddress": "192.168.1.100",
+          "osVersion": "Ubuntu 22.04",
+          "cpuModel": "Intel i7",
+          "cpuCores": 8,
+          "cpuThreads": 16,
+          "ramTotalBytes": 17179869184,
+          "ramSpeedMhz": 3200,
+          "ramType": "DDR4"
+        },
+        "services": [
+          {
+            "serviceName": "nginx",
+            "imageName": "nginx:latest"
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
