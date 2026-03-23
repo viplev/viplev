@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
@@ -124,14 +126,26 @@ public class AgentServiceImpl implements AgentService {
         }
         metricResourceHostRepository.saveAll(hostMetrics);
 
-        // Service metrics — look up each service by name scoped to the resolved host
+        // Service metrics — batch-fetch all services for the host in one query
         if (dto.getServices() != null && !dto.getServices().isEmpty()) {
+            Set<String> serviceNames = dto.getServices().stream()
+                    .map(MetricResourceServiceDTO::getServiceName)
+                    .collect(Collectors.toSet());
+
+            Map<String, Service> servicesByName = serviceRepository
+                    .findByHostIdAndServiceNameIn(host.getId(), serviceNames).stream()
+                    .collect(Collectors.toMap(Service::getServiceName, Function.identity()));
+
+            for (String name : serviceNames) {
+                if (!servicesByName.containsKey(name)) {
+                    throw new NotFoundException("Service not found",
+                            "Service with name " + name + " not found on host");
+                }
+            }
+
             List<MetricResourceService> serviceMetrics = new ArrayList<>();
             for (MetricResourceServiceDTO serviceDto : dto.getServices()) {
-                Service service = serviceRepository
-                        .findByServiceNameAndHostId(serviceDto.getServiceName(), host.getId())
-                        .orElseThrow(() -> new NotFoundException("Service not found",
-                                "Service with name " + serviceDto.getServiceName() + " not found on host"));
+                Service service = servicesByName.get(serviceDto.getServiceName());
 
                 for (MetricDataPointDTO dp : serviceDto.getMetrics()) {
                     serviceMetrics.add(new MetricResourceService(

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface ServiceRepository extends JpaRepository<Service, UUID> {
@@ -16,4 +17,6 @@ public interface ServiceRepository extends JpaRepository<Service, UUID> {
     Optional<Service> findByIdAndHostEnvironmentId(UUID id, UUID environmentId);
 
     Optional<Service> findByServiceNameAndHostId(String serviceName, UUID hostId);
+
+    List<Service> findByHostIdAndServiceNameIn(UUID hostId, Set<String> serviceNames);
 }
