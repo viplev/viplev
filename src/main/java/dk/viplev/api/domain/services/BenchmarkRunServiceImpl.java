@@ -87,6 +87,14 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         int pageNumber = page != null ? page : 0;
         int pageSize = size != null ? size : 20;
+
+        if (pageNumber < 0) {
+            throw new BadRequestException("Page must be >= 0, got: " + pageNumber);
+        }
+        if (pageSize < 1 || pageSize > 100) {
+            throw new BadRequestException("Size must be between 1 and 100, got: " + pageSize);
+        }
+
         Sort sorting = parseSort(sort != null ? sort : "status,asc;startedAt,desc");
 
         Page<BenchmarkRun> resultPage = benchmarkRunRepository.findByEnvironmentId(
@@ -100,7 +108,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         PaginationDTO pagination = new PaginationDTO();
         pagination.setPage(pageNumber);
         pagination.setSize(pageSize);
-        pagination.setTotalElements((int) resultPage.getTotalElements());
+        long totalElementsLong = resultPage.getTotalElements();
+        int totalElements = totalElementsLong > Integer.MAX_VALUE
+                ? Integer.MAX_VALUE
+                : (int) totalElementsLong;
+        pagination.setTotalElements(totalElements);
         pagination.setTotalPages(resultPage.getTotalPages());
         dto.setPagination(pagination);
 
@@ -113,13 +125,16 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<Sort.Order> orders = new ArrayList<>();
         for (String part : sort.split(";")) {
             String[] tokens = part.trim().split(",");
-            if (tokens.length < 2) {
+            if (tokens.length != 2) {
                 throw new BadRequestException("Invalid sort format: " + part + ". Expected format: field,direction");
             }
             String field = tokens[0].trim();
             String direction = tokens[1].trim().toLowerCase();
             if (!SORTABLE_FIELDS.contains(field)) {
                 throw new BadRequestException("Invalid sort field: " + field + ". Allowed: " + SORTABLE_FIELDS);
+            }
+            if (!"asc".equals(direction) && !"desc".equals(direction)) {
+                throw new BadRequestException("Invalid sort direction: " + direction + ". Allowed: asc, desc");
             }
             orders.add(new Sort.Order(
                     "desc".equals(direction) ? Sort.Direction.DESC : Sort.Direction.ASC,

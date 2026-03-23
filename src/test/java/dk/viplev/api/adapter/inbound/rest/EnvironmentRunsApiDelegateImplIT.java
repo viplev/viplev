@@ -264,6 +264,38 @@ class EnvironmentRunsApiDelegateImplIT {
     }
 
     @Test
+    void shouldReturn400ForNegativePage() throws Exception {
+        mockMvc.perform(get(environmentRunsUrl(user1EnvironmentId))
+                        .param("page", "-1")
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturn400ForZeroSize() throws Exception {
+        mockMvc.perform(get(environmentRunsUrl(user1EnvironmentId))
+                        .param("size", "0")
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturn400ForSizeExceedingMax() throws Exception {
+        mockMvc.perform(get(environmentRunsUrl(user1EnvironmentId))
+                        .param("size", "101")
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturn400ForInvalidSortDirection() throws Exception {
+        mockMvc.perform(get(environmentRunsUrl(user1EnvironmentId))
+                        .param("sort", "status,down")
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldReturn400ForInvalidSortField() throws Exception {
         mockMvc.perform(get(environmentRunsUrl(user1EnvironmentId))
                         .param("sort", "invalidField,asc")
