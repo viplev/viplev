@@ -132,7 +132,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
     private List<RawHostTimeSeriesDTO> buildRawHosts(List<MetricResourceHost> hostMetrics,
                                                       List<MetricResourceService> serviceMetrics) {
-        if (hostMetrics.isEmpty()) {
+        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty()) {
             return List.of();
         }
 
@@ -142,13 +142,20 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         Map<UUID, List<MetricResourceService>> servicesByHost = serviceMetrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
-        return groupedByHost.entrySet().stream().map(entry -> {
+        // Union of all host IDs from both host metrics and service metrics
+        Map<UUID, String> allHosts = new LinkedHashMap<>();
+        hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
+        serviceMetrics.forEach(m -> allHosts.put(m.getService().getHost().getId(), m.getService().getHost().getName()));
+
+        return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();
-            List<MetricResourceHost> metrics = entry.getValue();
+            String hostName = entry.getValue();
 
             RawHostTimeSeriesDTO hostDto = new RawHostTimeSeriesDTO();
             hostDto.setHostId(hostId);
-            hostDto.setHostName(metrics.getFirst().getHost().getName());
+            hostDto.setHostName(hostName);
+
+            List<MetricResourceHost> metrics = groupedByHost.getOrDefault(hostId, List.of());
             hostDto.setDataPoints(metrics.stream()
                     .sorted(Comparator.comparing(MetricResourceHost::getCollectedAt))
                     .map(this::toRawResourceDataPoint)
@@ -305,7 +312,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             summary.setWaiting(buildHttpTiming(waitingValues, percentileValues, pNames));
 
             return summary;
-        }).toList();
+        }).sorted(Comparator.comparing(s -> s.getRequestGroup() != null ? s.getRequestGroup() : "")).toList();
     }
 
     private DerivedHttpTimingDTO buildHttpTiming(List<Double> values, List<Double> percentileValues, List<String> percentileNames) {
@@ -366,7 +373,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                                                            List<MetricResourceService> serviceMetrics,
                                                            List<Double> percentileValues,
                                                            String percentileNames) {
-        if (hostMetrics.isEmpty()) {
+        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty()) {
             return List.of();
         }
 
@@ -378,15 +385,21 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         Map<UUID, List<MetricResourceService>> servicesByHost = serviceMetrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
-        return groupedByHost.entrySet().stream().map(entry -> {
+        // Union of all host IDs from both host metrics and service metrics
+        Map<UUID, String> allHosts = new LinkedHashMap<>();
+        hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
+        serviceMetrics.forEach(m -> allHosts.put(m.getService().getHost().getId(), m.getService().getHost().getName()));
+
+        return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();
-            List<MetricResourceHost> metrics = entry.getValue();
-            String hostName = metrics.getFirst().getHost().getName();
+            String hostName = entry.getValue();
 
             DerivedHostSummaryDTO hostSummary = new DerivedHostSummaryDTO();
             hostSummary.setHostId(hostId);
             hostSummary.setHostName(hostName);
-            hostSummary.setResource(buildResourceSummaryFromHost(metrics, percentileValues, pNames));
+
+            List<MetricResourceHost> metrics = groupedByHost.getOrDefault(hostId, List.of());
+            hostSummary.setResource(metrics.isEmpty() ? null : buildResourceSummaryFromHost(metrics, percentileValues, pNames));
 
             List<MetricResourceService> hostServices = servicesByHost.getOrDefault(hostId, List.of());
             if (!hostServices.isEmpty()) {
@@ -533,8 +546,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             }
             try {
                 String numPart = trimmed.substring(1);
+                if (numPart.contains(".")) {
+                    throw new BadRequestException("Invalid percentile format: " + p + ". Use p999 instead of p99.9");
+                }
                 double value;
-                if (numPart.length() > 2 && !numPart.contains(".")) {
+                if (numPart.length() > 2) {
                     value = Double.parseDouble(numPart.substring(0, 2) + "." + numPart.substring(2));
                 } else {
                     value = Double.parseDouble(numPart);
