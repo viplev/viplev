@@ -75,7 +75,8 @@ class EnvironmentApiDelegateImplIT {
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.agentCommand").isNotEmpty())
-                .andExpect(jsonPath("$.createdAt").isNotEmpty());
+                .andExpect(jsonPath("$.createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.agentLastSeenAt").doesNotExist());
     }
 
     @Test
