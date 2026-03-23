@@ -2,6 +2,7 @@ package dk.viplev.api.domain.services;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDerivedDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunRawDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedHostSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedHttpSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedHttpTimingDTO;
@@ -9,6 +10,12 @@ import dk.viplev.api.adapter.inbound.rest.dto.DerivedResourceStatsDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedResourceSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedServiceSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedVusSummaryDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawHostTimeSeriesDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawK6DataPointDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawK6TimeSeriesDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawResourceDataPointDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawServiceTimeSeriesDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawTimeSeriesDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
@@ -36,11 +43,13 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -97,6 +106,127 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         BenchmarkRun run = benchmarkRunRepository.findByIdAndBenchmarkId(runId, benchmarkId)
                 .orElseThrow(() -> new NotFoundException("Benchmark run not found"));
         benchmarkRunRepository.delete(run);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BenchmarkRunRawDTO getBenchmarkRunRaw(UUID environmentId, UUID benchmarkId, UUID runId) {
+        findEnvironmentByOwner(environmentId);
+        findBenchmarkByEnvironment(benchmarkId, environmentId);
+        benchmarkRunRepository.findByIdAndBenchmarkId(runId, benchmarkId)
+                .orElseThrow(() -> new NotFoundException("Benchmark run not found"));
+
+        List<MetricResourceHost> hostMetrics = metricResourceHostRepository.findByBenchmarkRunId(runId);
+        List<MetricResourceService> serviceMetrics = metricResourceServiceRepository.findByBenchmarkRunId(runId);
+        List<MetricK6Http> httpMetrics = metricK6HttpRepository.findByBenchmarkRunId(runId);
+        List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
+
+        RawTimeSeriesDTO timeSeries = new RawTimeSeriesDTO();
+        timeSeries.setHosts(buildRawHosts(hostMetrics, serviceMetrics));
+        timeSeries.setK6(buildRawK6(httpMetrics, vusMetrics));
+
+        BenchmarkRunRawDTO result = new BenchmarkRunRawDTO();
+        result.setTimeSeries(timeSeries);
+        return result;
+    }
+
+    private List<RawHostTimeSeriesDTO> buildRawHosts(List<MetricResourceHost> hostMetrics,
+                                                      List<MetricResourceService> serviceMetrics) {
+        if (hostMetrics.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, List<MetricResourceHost>> groupedByHost = hostMetrics.stream()
+                .collect(Collectors.groupingBy(m -> m.getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        Map<UUID, List<MetricResourceService>> servicesByHost = serviceMetrics.stream()
+                .collect(Collectors.groupingBy(m -> m.getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        return groupedByHost.entrySet().stream().map(entry -> {
+            UUID hostId = entry.getKey();
+            List<MetricResourceHost> metrics = entry.getValue();
+
+            RawHostTimeSeriesDTO hostDto = new RawHostTimeSeriesDTO();
+            hostDto.setHostId(hostId);
+            hostDto.setHostName(metrics.getFirst().getHost().getName());
+            hostDto.setDataPoints(metrics.stream()
+                    .sorted(Comparator.comparing(MetricResourceHost::getCollectedAt))
+                    .map(this::toRawResourceDataPoint)
+                    .toList());
+
+            List<MetricResourceService> hostServices = servicesByHost.getOrDefault(hostId, List.of());
+            if (!hostServices.isEmpty()) {
+                Map<UUID, List<MetricResourceService>> groupedByService = hostServices.stream()
+                        .collect(Collectors.groupingBy(m -> m.getService().getId(), LinkedHashMap::new, Collectors.toList()));
+
+                hostDto.setServices(groupedByService.entrySet().stream().map(sEntry -> {
+                    RawServiceTimeSeriesDTO serviceDto = new RawServiceTimeSeriesDTO();
+                    serviceDto.setServiceId(sEntry.getKey());
+                    serviceDto.setServiceName(sEntry.getValue().getFirst().getService().getServiceName());
+                    serviceDto.setDataPoints(sEntry.getValue().stream()
+                            .sorted(Comparator.comparing(MetricResourceService::getCollectedAt))
+                            .map(this::toRawResourceDataPoint)
+                            .toList());
+                    return serviceDto;
+                }).toList());
+            } else {
+                hostDto.setServices(List.of());
+            }
+
+            return hostDto;
+        }).toList();
+    }
+
+    private RawResourceDataPointDTO toRawResourceDataPoint(MetricResourceHost m) {
+        RawResourceDataPointDTO dp = new RawResourceDataPointDTO();
+        dp.setTimestamp(m.getCollectedAt());
+        dp.setCpuPercentage(m.getCpuPercentage());
+        dp.setMemoryUsageBytes(m.getMemoryUsageBytes());
+        dp.setMemoryLimitBytes(m.getMemoryLimitBytes());
+        dp.setNetworkInBytes(m.getNetworkInBytes());
+        dp.setNetworkOutBytes(m.getNetworkOutBytes());
+        dp.setBlockInBytes(m.getBlockInBytes());
+        dp.setBlockOutBytes(m.getBlockOutBytes());
+        return dp;
+    }
+
+    private RawResourceDataPointDTO toRawResourceDataPoint(MetricResourceService m) {
+        RawResourceDataPointDTO dp = new RawResourceDataPointDTO();
+        dp.setTimestamp(m.getCollectedAt());
+        dp.setCpuPercentage(m.getCpuPercentage());
+        dp.setMemoryUsageBytes(m.getMemoryUsageBytes());
+        dp.setMemoryLimitBytes(m.getMemoryLimitBytes());
+        dp.setNetworkInBytes(m.getNetworkInBytes());
+        dp.setNetworkOutBytes(m.getNetworkOutBytes());
+        dp.setBlockInBytes(m.getBlockInBytes());
+        dp.setBlockOutBytes(m.getBlockOutBytes());
+        return dp;
+    }
+
+    private RawK6TimeSeriesDTO buildRawK6(List<MetricK6Http> httpMetrics, List<MetricK6Vus> vusMetrics) {
+        if (httpMetrics.isEmpty() && vusMetrics.isEmpty()) {
+            return null;
+        }
+
+        List<RawK6DataPointDTO> dataPoints = Stream.concat(
+                httpMetrics.stream().map(m -> {
+                    RawK6DataPointDTO dp = new RawK6DataPointDTO();
+                    dp.setTimestamp(m.getCollectedAt());
+                    dp.setHttpResponseTimeMs(m.getHttpReqDurationMs());
+                    dp.setHttpWaitingMs(m.getHttpReqWaitingMs());
+                    return dp;
+                }),
+                vusMetrics.stream().map(m -> {
+                    RawK6DataPointDTO dp = new RawK6DataPointDTO();
+                    dp.setTimestamp(m.getCollectedAt());
+                    dp.setVus(m.getVus());
+                    return dp;
+                })
+        ).sorted(Comparator.comparing(RawK6DataPointDTO::getTimestamp)).toList();
+
+        RawK6TimeSeriesDTO k6 = new RawK6TimeSeriesDTO();
+        k6.setDataPoints(dataPoints);
+        return k6;
     }
 
     private List<DerivedHttpSummaryDTO> buildHttpSummaries(List<MetricK6Http> metrics, List<Double> percentileValues, String percentileNames) {
