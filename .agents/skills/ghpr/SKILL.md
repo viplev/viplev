@@ -1,58 +1,62 @@
 ---
 name: ghpr
-description: 'Review a GitHub PR, address Copilot review comments, fix code, push, and reply to comments.'
+description: >
+  Review a GitHub PR, address Copilot review comments, fix code, push and
+  reply to each comment. Use this skill whenever the user wants to address
+  review feedback on a PR. Triggers on phrases like "address PR #X",
+  "ret review kommentarer", "fix review on PR", "tag hånd om PR #X".
 argument-hint: "[pr-number]"
 ---
 
 # GitHub PR Review Workflow
 
-Address review comments on GitHub PR #$ARGUMENTS following this strict multi-phase flow.
+Orchestrate the full workflow for addressing review comments on PR #$ARGUMENTS.
 
-## Phase 1: Read & Understand
+This skill is intentionally thin — it handles only what is unique to the
+PR workflow. Shared steps delegate to `ghplan`, `ghbuild`, and `ghcommit`.
+
+---
+
+## Phase 1: Read & Fetch
 
 1. Run `git pull` to ensure we are up to date.
 2. Use MCP tools to read PR #$ARGUMENTS: title, description, branch, and current status.
 3. Check out the PR branch locally and pull the latest code.
-4. Use MCP tools to read all review comments from Copilot on the PR.
-5. Present a summary of the PR and all review comments to the user.
+4. Use MCP tools to read all review comments (from Copilot or others) on the PR.
+5. Present a clear summary of the PR and all review comments to the user.
 
 ## Phase 2: Plan
 
-1. Enter **plan mode** and create a plan for addressing each review comment:
-   - What needs to change and where
-   - Whether any tests need to be updated (flag this explicitly — tests should generally NOT need changes)
-   - If anything is unclear or ambiguous, use `AskUserQuestion` to ask the user for clarification
-2. Present the plan to the user. **Wait for explicit approval before continuing.**
+Hand off to **`ghplan`** with the list of review comments as input.
+
+- If anything is unclear or ambiguous, ask the user for clarification before handing off.
+- If the user chooses `yes/clear`: end this session here. Tell the user to start a new session and run `ghpr-implement $ARGUMENTS` (or describe the approved plan) to continue from Phase 3.
+- If the user chooses `yes`: continue directly to Phase 3.
 
 ## Phase 3: Implement
 
-Once the user approves the plan:
-
 1. Implement the fixes according to the approved plan.
 2. If existing tests need changes, explicitly tell the user what changed and why.
-3. Run `./gradlew build` to verify everything compiles and tests pass.
+   (Tests should generally **not** need changes — flag this clearly if they do.)
 
-## Phase 4: Review & Deliver
+## Phase 4: Build
 
-When implementation is complete:
+Hand off to **`ghbuild`**.
 
-1. Present a summary to the user:
-   - What was changed per review comment
-   - Files modified
-   - Tests added/modified (if any)
-   - Build/test results
-2. **Wait for explicit user approval (yes/no) before continuing.**
+## Phase 5: Review & Approve
 
-## Phase 5: Commit, Push & Reply
+Present a summary to the user:
+- What was changed per review comment
+- Files modified
+- Tests added/modified (if any)
+- Build/test results
 
-Once the user says yes:
+**Wait for explicit user approval (yes/no) before continuing.**
 
-1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Determine the commit type from the linked issue's GitHub labels:
-   - `bug` label → `fix(<scope>): ...`
-   - `enhancement` or `feature` label → `feat(<scope>): ...`
-   - `documentation` label → `docs(<scope>): ...`
-   - If multiple labels match, `bug` (fix) takes priority over `enhancement`/`feature` (feat).
-   - **If the issue has no matching label**, **ask the user** what commit type to use — do not silently default to `chore`.
-2. Push the branch: `git push`
-3. Use MCP tools to reply to each Copilot review comment on GitHub, explaining what was done to address it.
-4. Inform the user that all comments have been replied to, and they can now request a new review or merge.
+If the user says no: address their feedback and re-run Phase 4.
+
+## Phase 6: Commit & Reply
+
+Hand off to **`ghcommit`** with:
+- PR number: `$ARGUMENTS`
+- Mode: `pr`

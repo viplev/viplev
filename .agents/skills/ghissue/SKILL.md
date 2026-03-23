@@ -1,64 +1,68 @@
 ---
 name: ghissue
-description: 'Read a GitHub issue, plan implementation, develop, test, commit, push and create PR.'
+description: >
+  Work on a GitHub issue end-to-end: read the issue, plan implementation,
+  develop, test, commit, push and create a PR. Use this skill whenever the
+  user wants to implement a GitHub issue. Triggers on phrases like "work on
+  issue #X", "implement issue", "løs issue", "tag issue #X".
 argument-hint: "[issue-number]"
 ---
 
 # GitHub Issue Workflow
 
-Work on GitHub issue #$ARGUMENTS following this strict multi-phase flow.
+Orchestrate the full workflow for implementing GitHub issue #$ARGUMENTS.
 
-## Phase 1: Read & Plan
+This skill is intentionally thin — it handles only what is unique to the
+issue workflow. Shared steps delegate to `ghplan`, `ghbuild`, and `ghcommit`.
+
+---
+
+## Phase 1: Read & Fetch
 
 1. Run `git pull` to ensure we are up to date.
-2. Use `gh issue view $ARGUMENTS` to fetch the issue title, body, and comments.
-3. Present a brief summary of the issue, then use `AskUserQuestion` to ask:
-   "Er der noget yderligere kontekst jeg skal vide om dette issue? (tryk Enter for at fortsætte)"
-   - If the user provides context, factor it into the plan.
-   - If blank, proceed as normal.
-4. Enter **plan mode** and create a detailed implementation plan:
-   - What files need to be created or modified
-   - What OpenAPI changes are needed (if any)
-   - What tests need to be written or updated
-   - Any existing tests that may break and need adjustment
-5. Present the plan to the user. **Wait for explicit approval before continuing.**
+2. Run `gh issue view $ARGUMENTS` to fetch the issue title, body, and comments.
+3. Present a brief summary of the issue to the user.
+4. Ask: *"Er der noget yderligere kontekst jeg skal vide om dette issue? (tryk Enter for at fortsætte)"*
+   - If the user provides context, factor it into the next phase.
 
-## Phase 2: Branch & Implement
+## Phase 2: Plan
 
-Once the user approves the plan:
+Hand off to **`ghplan`** with the issue summary as input.
+
+- If the user chooses `yes/clear`: end this session here. Tell the user to start a new session and run `ghissue-implement $ARGUMENTS` (or describe the approved plan) to continue from Phase 3.
+- If the user chooses `yes`: continue directly to Phase 3.
+
+## Phase 3: Branch & Implement
 
 1. Get or create a branch linked to the issue:
-   - Run `gh issue develop --list $ARGUMENTS` to check if a branch already exists
+   - Run `gh issue develop --list $ARGUMENTS` to check if a branch already exists.
    - If a branch exists: `git fetch origin && git checkout <branch-name>`
-   - If no branch exists: run `gh issue develop $ARGUMENTS` to create one, then checkout the new branch
+   - If no branch exists: `gh issue develop $ARGUMENTS`, then checkout the new branch.
+
 2. Implement the solution according to the approved plan.
-3. Write tests (unit and/or integration as appropriate).
+
+3. Write tests (unit and integration as appropriate).
+
 4. If existing tests need changes, explicitly tell the user what changed and why.
-5. Run `./gradlew build` to verify everything compiles and tests pass.
 
-## Phase 3: Review & Deliver
+## Phase 4: Build
 
-When implementation is complete:
+Hand off to **`ghbuild`**.
 
-1. Present a summary to the user:
-   - What was implemented
-   - Files created/modified
-   - Tests added/modified
-   - Build/test results
-2. **Wait for explicit user approval (yes/no) before continuing.**
+## Phase 5: Review & Approve
 
-## Phase 4: Commit, Push & PR
+Present a summary to the user:
+- What was implemented
+- Files created/modified
+- Tests added/modified
+- Build/test results
 
-Once the user says yes:
+**Wait for explicit user approval (yes/no) before continuing.**
 
-1. Stage and commit with a semantic commit message (do NOT mention Claude/AI). Determine the commit type from the issue's GitHub labels:
-   - `bug` label → `fix(<scope>): ...`
-   - `enhancement` or `feature` label → `feat(<scope>): ...`
-   - `documentation` label → `docs(<scope>): ...`
-   - If multiple labels match, `bug` (fix) takes priority over `enhancement`/`feature` (feat).
-   - **If the issue has no matching label**, **ask the user** what commit type to use — do not silently default to `chore`.
-2. Push the branch: `git push -u origin <branch-name>`
-3. Create a PR using `gh pr create`:
-   - Title: use the same semantic prefix as the commit message, ending with `(#<issue-number>)` — e.g. `feat(agent): implement store metrics endpoint (#12)`
-   - Body must start with `Closes #<issue-number>` on the first line
-   - Include a summary of changes and test plan
+If the user says no: address their feedback and re-run Phase 4.
+
+## Phase 6: Commit & PR
+
+Hand off to **`ghcommit`** with:
+- Issue number: `$ARGUMENTS`
+- Mode: `issue`
