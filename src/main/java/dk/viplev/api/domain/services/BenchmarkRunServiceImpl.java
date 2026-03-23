@@ -10,6 +10,8 @@ import dk.viplev.api.adapter.inbound.rest.dto.DerivedResourceStatsDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedResourceSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedServiceSummaryDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.DerivedVusSummaryDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.EnvironmentRunsDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.PaginationDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawHostTimeSeriesDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawK6DataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawK6TimeSeriesDTO;
@@ -36,6 +38,9 @@ import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +52,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -72,6 +78,54 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         return benchmarkRunRepository.findByBenchmarkId(benchmarkId).stream()
                 .map(benchmarkRunMapper::toDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EnvironmentRunsDTO listEnvironmentRuns(UUID environmentId, Integer page, Integer size, String sort) {
+        findEnvironmentByOwner(environmentId);
+
+        int pageNumber = page != null ? page : 0;
+        int pageSize = size != null ? size : 20;
+        Sort sorting = parseSort(sort != null ? sort : "status,asc;startedAt,desc");
+
+        Page<BenchmarkRun> resultPage = benchmarkRunRepository.findByEnvironmentId(
+                environmentId, PageRequest.of(pageNumber, pageSize, sorting));
+
+        EnvironmentRunsDTO dto = new EnvironmentRunsDTO();
+        dto.setRuns(resultPage.getContent().stream()
+                .map(benchmarkRunMapper::toSummaryDto)
+                .toList());
+
+        PaginationDTO pagination = new PaginationDTO();
+        pagination.setPage(pageNumber);
+        pagination.setSize(pageSize);
+        pagination.setTotalElements((int) resultPage.getTotalElements());
+        pagination.setTotalPages(resultPage.getTotalPages());
+        dto.setPagination(pagination);
+
+        return dto;
+    }
+
+    private static final Set<String> SORTABLE_FIELDS = Set.of("status", "startedAt", "finishedAt");
+
+    private Sort parseSort(String sort) {
+        List<Sort.Order> orders = new ArrayList<>();
+        for (String part : sort.split(";")) {
+            String[] tokens = part.trim().split(",");
+            if (tokens.length < 2) {
+                throw new BadRequestException("Invalid sort format: " + part + ". Expected format: field,direction");
+            }
+            String field = tokens[0].trim();
+            String direction = tokens[1].trim().toLowerCase();
+            if (!SORTABLE_FIELDS.contains(field)) {
+                throw new BadRequestException("Invalid sort field: " + field + ". Allowed: " + SORTABLE_FIELDS);
+            }
+            orders.add(new Sort.Order(
+                    "desc".equals(direction) ? Sort.Direction.DESC : Sort.Direction.ASC,
+                    field));
+        }
+        return Sort.by(orders);
     }
 
     @Override
