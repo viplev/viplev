@@ -181,7 +181,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             }
 
             return hostDto;
-        }).toList();
+        }).sorted(Comparator.comparing(RawHostTimeSeriesDTO::getHostName)).toList();
     }
 
     private RawResourceDataPointDTO toRawResourceDataPoint(MetricResourceHost m) {
@@ -424,7 +424,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             }
 
             return hostSummary;
-        }).toList();
+        }).sorted(Comparator.comparing(DerivedHostSummaryDTO::getHostName)).toList();
     }
 
     private DerivedResourceSummaryDTO buildResourceSummaryFromHost(List<MetricResourceHost> metrics,
@@ -442,19 +442,19 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         long networkIn = metrics.stream()
                 .filter(m -> m.getNetworkInBytes() != null)
-                .mapToLong(m -> m.getNetworkInBytes().longValue())
+                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
                 .sum();
         long networkOut = metrics.stream()
                 .filter(m -> m.getNetworkOutBytes() != null)
-                .mapToLong(m -> m.getNetworkOutBytes().longValue())
+                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
                 .sum();
         long blockIn = metrics.stream()
                 .filter(m -> m.getBlockInBytes() != null)
-                .mapToLong(m -> m.getBlockInBytes().longValue())
+                .mapToLong(m -> Math.round(m.getBlockInBytes()))
                 .sum();
         long blockOut = metrics.stream()
                 .filter(m -> m.getBlockOutBytes() != null)
-                .mapToLong(m -> m.getBlockOutBytes().longValue())
+                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
                 .sum();
 
         DerivedResourceSummaryDTO summary = new DerivedResourceSummaryDTO();
@@ -483,19 +483,19 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         long networkIn = metrics.stream()
                 .filter(m -> m.getNetworkInBytes() != null)
-                .mapToLong(m -> m.getNetworkInBytes().longValue())
+                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
                 .sum();
         long networkOut = metrics.stream()
                 .filter(m -> m.getNetworkOutBytes() != null)
-                .mapToLong(m -> m.getNetworkOutBytes().longValue())
+                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
                 .sum();
         long blockIn = metrics.stream()
                 .filter(m -> m.getBlockInBytes() != null)
-                .mapToLong(m -> m.getBlockInBytes().longValue())
+                .mapToLong(m -> Math.round(m.getBlockInBytes()))
                 .sum();
         long blockOut = metrics.stream()
                 .filter(m -> m.getBlockOutBytes() != null)
-                .mapToLong(m -> m.getBlockOutBytes().longValue())
+                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
                 .sum();
 
         DerivedResourceSummaryDTO summary = new DerivedResourceSummaryDTO();
