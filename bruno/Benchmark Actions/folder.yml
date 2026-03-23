@@ -1,5 +1,5 @@
 info:
-  name: /v1/environments/:id/benchmarks/:id/runs
+  name: Benchmark Actions
   type: folder
   seq: 5
 

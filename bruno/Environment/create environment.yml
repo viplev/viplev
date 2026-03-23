@@ -1,0 +1,31 @@
+info:
+  name: /v1/environments - Create environment
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{http_url}}/v1/environments"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "host 1",
+        "description": "mit første environment",
+        "type": "docker"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        let data = res.body;
+        bru.setEnvVar('environment_id', data.id);
+        bru.setEnvVar('agent_access_token', data.token);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

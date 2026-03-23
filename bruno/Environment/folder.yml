@@ -1,7 +1,7 @@
 info:
-  name: /v1/environments/benchmarks
+  name: Environment
   type: folder
-  seq: 4
+  seq: 2
 
 request:
   auth: inherit

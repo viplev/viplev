@@ -1,0 +1,50 @@
+info:
+  name: /v1/.../runs/:id/metrics/performance - Store performance metrics
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{http_url}}/v1/environments/:environmentId/benchmarks/:benchmarkId/runs/:runId/metrics/performance"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
+    - name: benchmarkId
+      value: "{{benchmark_id}}"
+      type: path
+    - name: runId
+      value: "{{run_id}}"
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "httpMetrics": [
+          {
+            "collectedAt": "2025-01-15T10:00:00",
+            "url": "http://example.com/api/test",
+            "httpMethod": "GET",
+            "requestGroup": "api-test",
+            "httpStatus": 200,
+            "expectedStatus": 200,
+            "dataReceivedByte": 1024,
+            "dataSentByte": 512,
+            "httpReqDurationMs": 45,
+            "httpReqWaitingMs": 30
+          }
+        ],
+        "vusMetrics": [
+          {
+            "collectedAt": "2025-01-15T10:00:00",
+            "vus": 10
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

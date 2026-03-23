@@ -1,0 +1,24 @@
+info:
+  name: /v1/environments - Get all environments
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{http_url}}/v1/environments"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        let data = res.body;
+        if (Array.isArray(data) && data.length > 0) {
+          bru.setEnvVar('environment_id', data[0].id);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

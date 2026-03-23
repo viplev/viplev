@@ -1,11 +1,15 @@
 info:
-  name: updateEnvironment/{id}
+  name: /v1/environments/:id - Update an environment
   type: http
-  seq: 2
+  seq: 4
 
 http:
   method: PUT
-  url: "{{http_url}}/v1/environments/{{environment_id}}"
+  url: "{{http_url}}/v1/environments/:environmentId"
+  params:
+    - name: environmentId
+      value: "{{environment_id}}"
+      type: path
   body:
     type: json
     data: |-

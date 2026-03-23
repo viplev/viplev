@@ -1,27 +1,25 @@
 info:
-  name: createEnvironment
+  name: /v1/auth/login - Login
   type: http
-  seq: 2
+  seq: 1
 
 http:
   method: POST
-  url: "{{http_url}}/v1/environments"
+  url: "{{http_url}}/v1/auth/login"
   body:
     type: json
     data: |-
       {
-        "name": "host 1",
-        "description": "mit første environment",
-        "type": "docker"
+        "email": "admin1@viplev.dk",
+        "password": "password"
       }
-  auth: inherit
 
 runtime:
   scripts:
     - type: after-response
       code: |-
         let data = res.body;
-        bru.setEnvVar('environment_id', data.id);
+        bru.setEnvVar('access_token', data.token);
 
 settings:
   encodeUrl: true
