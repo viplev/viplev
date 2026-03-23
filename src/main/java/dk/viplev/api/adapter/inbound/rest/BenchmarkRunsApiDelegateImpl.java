@@ -1,6 +1,7 @@
 package dk.viplev.api.adapter.inbound.rest;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDerivedDTO;
 import dk.viplev.api.port.inbound.BenchmarkRunService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,11 @@ public class BenchmarkRunsApiDelegateImpl implements BenchmarkRunsApiDelegate {
     @Override
     public ResponseEntity<List<BenchmarkRunDTO>> listBenchmarkRuns(UUID environmentId, UUID benchmarkId) {
         return ResponseEntity.ok(benchmarkRunService.listBenchmarkRuns(environmentId, benchmarkId));
+    }
+
+    @Override
+    public ResponseEntity<BenchmarkRunDerivedDTO> getBenchmarkRun(UUID environmentId, UUID benchmarkId, UUID runId, String percentiles) {
+        return ResponseEntity.ok(benchmarkRunService.getBenchmarkRunDerived(environmentId, benchmarkId, runId, percentiles));
     }
 
     @Override
