@@ -14,8 +14,9 @@ http:
     type: json
     data: |-
       {
-        "name": "My Benchmark",
-        "description": "A benchmark for testing"
+        "name": "{{$randomAdjective}}-{{$randomNoun}}-benchmark",
+        "description": "{{$randomCatchPhrase}}",
+        "k6Instructions": ""
       }
   auth: inherit
 

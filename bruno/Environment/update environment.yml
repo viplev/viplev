@@ -14,7 +14,7 @@ http:
     type: json
     data: |-
       {
-        "name": "test",
+        "name": "{{$randomAdjective}}-{{$randomNoun}}",
         "type": "docker"
       }
   auth: inherit

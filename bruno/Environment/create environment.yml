@@ -10,8 +10,8 @@ http:
     type: json
     data: |-
       {
-        "name": "host 1",
-        "description": "mit første environment",
+        "name": "{{$randomAdjective}}-{{$randomNoun}}",
+        "description": "{{$randomCatchPhrase}}",
         "type": "docker"
       }
   auth: inherit

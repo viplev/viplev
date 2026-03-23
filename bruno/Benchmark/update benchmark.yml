@@ -17,8 +17,8 @@ http:
     type: json
     data: |-
       {
-        "name": "Updated Benchmark",
-        "description": "Updated description"
+        "name": "{{$randomAdjective}}-{{$randomNoun}}-benchmark",
+        "description": "{{$randomCatchPhrase}}"
       }
   auth: inherit
 
