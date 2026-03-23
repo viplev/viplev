@@ -142,6 +142,30 @@ class EnvironmentServiceImplTest {
     }
 
     @Test
+    void shouldMapAgentLastSeenAt() {
+        LocalDateTime lastSeen = LocalDateTime.of(2025, 6, 15, 10, 30, 0);
+        Environment env = createEnvironment("Agent Env", "docker");
+        env.setAgentLastSeenAt(lastSeen);
+        when(environmentRepository.findByIdAndOwnerId(env.getId(), ownerId))
+                .thenReturn(Optional.of(env));
+
+        EnvironmentDTO result = environmentService.getEnvironment(env.getId());
+
+        assertThat(result.getAgentLastSeenAt()).isEqualTo(lastSeen);
+    }
+
+    @Test
+    void shouldReturnNullAgentLastSeenAtForNewEnvironment() {
+        Environment env = createEnvironment("New Env", "docker");
+        when(environmentRepository.findByIdAndOwnerId(env.getId(), ownerId))
+                .thenReturn(Optional.of(env));
+
+        EnvironmentDTO result = environmentService.getEnvironment(env.getId());
+
+        assertThat(result.getAgentLastSeenAt()).isNull();
+    }
+
+    @Test
     void shouldGenerateDockerAgentCommand() {
         Environment env = createEnvironment("Docker Env", "docker");
         env.setToken("my-token");
