@@ -87,7 +87,7 @@ Liquibase seeds 6 users (changeset 3). All have password `password`.
 - Public endpoints must be explicitly whitelisted in `WebSecurityConfig`
 
 ## GitHub Issues
-- Use a MCP tool for accessing github.
+- Use the `gh` CLI for accessing GitHub.
 - The user will only write simple tasks in github issue, I then have to use planmode to explode those issues, and evolve on the issue, together with the user, so that the explanation in the issue is as precise as possible.
 - The user will tell me to implement when he's ready, no need for me asking if i should implement an issue.
 
@@ -108,7 +108,7 @@ Follow semantic release conventions. The commit type is determined as follows:
 
 ## GitHub Pull Requests
 - When creating a pull request mark the issue in end of the PR title like this (#1)
-- When fixing review comments on a PR: after pushing the fix, reply to each resolved comment on GitHub explaining what was done to address it. Use the MCP tools to post the reply directly on the review comment thread.
+- When fixing review comments on a PR: after pushing the fix, reply to each resolved comment on GitHub explaining what was done to address it. Use the `gh` CLI to post the reply directly on the review comment thread.
 
 ## Git Branches
 - When developing code based on a github issue, always create a branch with the name of the issue.
