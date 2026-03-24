@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,14 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dk.viplev.api.domain.model.Benchmark;
+import dk.viplev.api.domain.model.BenchmarkRun;
+import dk.viplev.api.domain.model.BenchmarkRunStatus;
+import dk.viplev.api.domain.model.User;
+import dk.viplev.api.port.outbound.db.BenchmarkRepository;
+import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+import dk.viplev.api.port.outbound.db.UserRepository;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class BenchmarkApiDelegateImplIT {
@@ -28,6 +38,15 @@ class BenchmarkApiDelegateImplIT {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private BenchmarkRepository benchmarkRepository;
+
+    @Autowired
+    private BenchmarkRunRepository benchmarkRunRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private String user1Token;
     private String user2Token;
@@ -203,5 +222,39 @@ class BenchmarkApiDelegateImplIT {
     void shouldReturn401WithoutToken() throws Exception {
         mockMvc.perform(get(benchmarkUrl(user1EnvironmentId)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    private UUID createBenchmarkRunDirectly(UUID benchmarkUuid, String userEmail) {
+        Benchmark benchmark = benchmarkRepository.findById(benchmarkUuid).orElseThrow();
+        User user = userRepository.findByEmail(userEmail).orElseThrow();
+
+        BenchmarkRun run = new BenchmarkRun();
+        run.setBenchmark(benchmark);
+        run.setStartedByUser(user);
+        run.setStatus(BenchmarkRunStatus.PENDING_START);
+        return benchmarkRunRepository.saveAndFlush(run).getId();
+    }
+
+    @Test
+    void shouldDeleteBenchmarkWithRuns() throws Exception {
+        MvcResult createResult = mockMvc.perform(post(benchmarkUrl(user1EnvironmentId))
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(benchmarkJson("Benchmark With Run", "desc", "script")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String bmId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
+
+        createBenchmarkRunDirectly(UUID.fromString(bmId), "user1@viplev.dk");
+
+        mockMvc.perform(delete(benchmarkUrl(user1EnvironmentId, bmId))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(benchmarkUrl(user1EnvironmentId, bmId))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNotFound());
     }
 }
