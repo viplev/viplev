@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dk.viplev.api.port.outbound.db.BenchmarkRepository;
+import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class EnvironmentApiDelegateImplIT {
@@ -29,6 +34,15 @@ class EnvironmentApiDelegateImplIT {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private BenchmarkRepository benchmarkRepository;
+
+    @Autowired
+    private BenchmarkRunRepository benchmarkRunRepository;
+
+    @Autowired
+    private dk.viplev.api.util.TestObjectFactory testObjectFactory;
 
     private String user1Token;
     private String user2Token;
@@ -195,6 +209,77 @@ class EnvironmentApiDelegateImplIT {
     void shouldReturn401WithoutToken() throws Exception {
         mockMvc.perform(get("/v1/environments"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    private String createBenchmark(String token, String environmentId, String name) throws Exception {
+        String json = objectMapper.writeValueAsString(
+                java.util.Map.of("name", name));
+
+        MvcResult result = mockMvc.perform(post("/v1/environments/" + environmentId + "/benchmarks")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("id").asText();
+    }
+
+    @Test
+    void shouldDeleteEnvironmentWithBenchmarks() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/v1/environments")
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(environmentJson("Env With Benchmarks", "docker")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String envId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
+
+        createBenchmark(user1Token, envId, "Benchmark 1");
+        createBenchmark(user1Token, envId, "Benchmark 2");
+
+        mockMvc.perform(delete("/v1/environments/" + envId)
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/v1/environments/" + envId)
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNotFound());
+
+        org.assertj.core.api.Assertions.assertThat(benchmarkRepository.findByEnvironmentId(UUID.fromString(envId)))
+                .isEmpty();
+    }
+
+    @Test
+    void shouldDeleteEnvironmentWithBenchmarksAndRuns() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/v1/environments")
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(environmentJson("Env With Runs", "docker")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String envId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
+
+        String bmId = createBenchmark(user1Token, envId, "Benchmark With Run");
+        testObjectFactory.createBenchmarkRunDirectly(UUID.fromString(bmId), "user1@viplev.dk");
+
+        mockMvc.perform(delete("/v1/environments/" + envId)
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/v1/environments/" + envId)
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isNotFound());
+
+        org.assertj.core.api.Assertions.assertThat(benchmarkRepository.findByEnvironmentId(UUID.fromString(envId)))
+                .isEmpty();
+        org.assertj.core.api.Assertions.assertThat(benchmarkRunRepository.findByBenchmarkId(UUID.fromString(bmId)))
+                .isEmpty();
     }
 
     @Test

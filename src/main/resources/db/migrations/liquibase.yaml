@@ -122,3 +122,10 @@ databaseChangeLog:
         - sqlFile:
             path: changes/017-add-active-run-partial-unique-index.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 18
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/018-add-cascade-delete-to-parent-tables.sql
+            relativeToChangelogFile: true
