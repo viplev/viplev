@@ -80,6 +80,7 @@ public class EnvironmentServiceImpl implements EnvironmentService {
     }
 
     @Override
+    @Transactional
     public void deleteEnvironment(UUID environmentId) {
         UUID ownerId = authService.getAuthenticatedUserId();
         Environment environment = findByIdAndOwner(environmentId, ownerId);
