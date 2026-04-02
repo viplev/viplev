@@ -294,8 +294,19 @@ class EnvironmentApiDelegateImplIT {
         JsonNode node = objectMapper.readTree(result.getResponse().getContentAsString());
         String agentCommand = node.get("agentCommand").asText();
         String token = node.get("token").asText();
+        String id = node.get("id").asText();
 
         org.assertj.core.api.Assertions.assertThat(agentCommand)
-                .isEqualTo("docker run -e VIPLEV_TOKEN=" + token + " ghcr.io/viplev/agent:latest");
+                .isEqualTo("docker run -d"
+                        + " --name viplev-agent"
+                        + " -v /var/run/docker.sock:/var/run/docker.sock"
+                        + " -v /proc:/host/proc:ro"
+                        + " -v /etc/machine-id:/etc/machine-id:ro"
+                        + " -e VIPLEV_URL=https://api.viplev.ringhus.dk"
+                        + " -e VIPLEV_TOKEN=" + token
+                        + " -e VIPLEV_ENVIRONMENT_ID=" + id
+                        + " -e AGENT_PROC_PATH=/host/proc"
+                        + " -p 8080:8080"
+                        + " ghcr.io/viplev/agent:latest");
     }
 }
