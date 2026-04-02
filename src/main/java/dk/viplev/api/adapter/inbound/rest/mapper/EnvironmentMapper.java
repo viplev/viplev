@@ -21,7 +21,17 @@ public interface EnvironmentMapper {
     @Named("toAgentCommand")
     default String toAgentCommand(Environment environment) {
         return switch (environment.getType()) {
-            case "docker" -> "docker run -e VIPLEV_TOKEN=" + environment.getToken() + " ghcr.io/viplev/agent:latest";
+            case "docker" -> "docker run -d"
+                    + " --name viplev-agent"
+                    + " -v /var/run/docker.sock:/var/run/docker.sock"
+                    + " -v /proc:/host/proc:ro"
+                    + " -v /etc/machine-id:/etc/machine-id:ro"
+                    + " -e VIPLEV_URL=https://api.viplev.ringhus.dk"
+                    + " -e VIPLEV_TOKEN=" + environment.getToken()
+                    + " -e VIPLEV_ENVIRONMENT_ID=" + environment.getId()
+                    + " -e AGENT_PROC_PATH=/host/proc"
+                    + " -p 8080:8080"
+                    + " ghcr.io/viplev/agent:latest";
             case "kubernetes" -> "kubectl apply -f - # VIPLEV_TOKEN=" + environment.getToken();
             default -> "";
         };

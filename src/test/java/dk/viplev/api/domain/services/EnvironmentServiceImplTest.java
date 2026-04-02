@@ -175,7 +175,17 @@ class EnvironmentServiceImplTest {
         EnvironmentDTO result = environmentService.getEnvironment(env.getId());
 
         assertThat(result.getAgentCommand())
-                .isEqualTo("docker run -e VIPLEV_TOKEN=my-token ghcr.io/viplev/agent:latest");
+                .isEqualTo("docker run -d"
+                        + " --name viplev-agent"
+                        + " -v /var/run/docker.sock:/var/run/docker.sock"
+                        + " -v /proc:/host/proc:ro"
+                        + " -v /etc/machine-id:/etc/machine-id:ro"
+                        + " -e VIPLEV_URL=https://api.viplev.ringhus.dk"
+                        + " -e VIPLEV_TOKEN=my-token"
+                        + " -e VIPLEV_ENVIRONMENT_ID=" + env.getId()
+                        + " -e AGENT_PROC_PATH=/host/proc"
+                        + " -p 8080:8080"
+                        + " ghcr.io/viplev/agent:latest");
     }
 
     @Test
