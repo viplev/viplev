@@ -7,6 +7,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricK6VusDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricPerformanceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
@@ -109,54 +110,56 @@ public class AgentServiceImpl implements AgentService {
                     "Cannot store metrics for a run with status " + run.getStatus());
         }
 
-        // Host metrics — agent sends metrics for a single host identified by machineId
-        String machineId = dto.getHost().getMachineId();
-        Host host = hostRepository.findByEnvironmentIdAndMachineId(environmentId, machineId)
-                .orElseThrow(() -> new NotFoundException("Host not found",
-                        "Host with machineId " + machineId + " not found in environment"));
+        // Process metrics for each node in the payload
+        for (MetricResourceNodeDTO node : dto.getHosts()) {
+            String machineId = node.getMachineId();
+            Host host = hostRepository.findByEnvironmentIdAndMachineId(environmentId, machineId)
+                    .orElseThrow(() -> new NotFoundException("Host not found",
+                            "Host with machineId " + machineId + " not found in environment"));
 
-        List<MetricResourceHost> hostMetrics = new ArrayList<>();
-        for (MetricDataPointDTO dp : dto.getHost().getMetrics()) {
-            hostMetrics.add(new MetricResourceHost(
-                    run, host, dp.getCollectedAt(),
-                    dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
-                    dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
-                    dp.getNetworkOutBytes(), dp.getBlockInBytes(),
-                    dp.getBlockOutBytes()));
-        }
-        metricResourceHostRepository.saveAll(hostMetrics);
-
-        // Service metrics — batch-fetch all services for the host in one query
-        if (dto.getServices() != null && !dto.getServices().isEmpty()) {
-            Set<String> serviceNames = dto.getServices().stream()
-                    .map(MetricResourceServiceDTO::getServiceName)
-                    .collect(Collectors.toSet());
-
-            Map<String, Service> servicesByName = serviceRepository
-                    .findByHostIdAndServiceNameIn(host.getId(), serviceNames).stream()
-                    .collect(Collectors.toMap(Service::getServiceName, Function.identity()));
-
-            for (String name : serviceNames) {
-                if (!servicesByName.containsKey(name)) {
-                    throw new NotFoundException("Service not found",
-                            "Service with name " + name + " not found on host");
-                }
+            List<MetricResourceHost> hostMetrics = new ArrayList<>();
+            for (MetricDataPointDTO dp : node.getMetrics()) {
+                hostMetrics.add(new MetricResourceHost(
+                        run, host, dp.getCollectedAt(),
+                        dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
+                        dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
+                        dp.getNetworkOutBytes(), dp.getBlockInBytes(),
+                        dp.getBlockOutBytes()));
             }
+            metricResourceHostRepository.saveAll(hostMetrics);
 
-            List<MetricResourceService> serviceMetrics = new ArrayList<>();
-            for (MetricResourceServiceDTO serviceDto : dto.getServices()) {
-                Service service = servicesByName.get(serviceDto.getServiceName());
+            // Service metrics — batch-fetch all services for the host in one query
+            if (node.getServices() != null && !node.getServices().isEmpty()) {
+                Set<String> serviceNames = node.getServices().stream()
+                        .map(MetricResourceServiceDTO::getServiceName)
+                        .collect(Collectors.toSet());
 
-                for (MetricDataPointDTO dp : serviceDto.getMetrics()) {
-                    serviceMetrics.add(new MetricResourceService(
-                            run, service, dp.getCollectedAt(),
-                            dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
-                            dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
-                            dp.getNetworkOutBytes(), dp.getBlockInBytes(),
-                            dp.getBlockOutBytes()));
+                Map<String, Service> servicesByName = serviceRepository
+                        .findByHostIdAndServiceNameIn(host.getId(), serviceNames).stream()
+                        .collect(Collectors.toMap(Service::getServiceName, Function.identity()));
+
+                for (String name : serviceNames) {
+                    if (!servicesByName.containsKey(name)) {
+                        throw new NotFoundException("Service not found",
+                                "Service with name " + name + " not found on host");
+                    }
                 }
+
+                List<MetricResourceService> serviceMetrics = new ArrayList<>();
+                for (MetricResourceServiceDTO serviceDto : node.getServices()) {
+                    Service service = servicesByName.get(serviceDto.getServiceName());
+
+                    for (MetricDataPointDTO dp : serviceDto.getMetrics()) {
+                        serviceMetrics.add(new MetricResourceService(
+                                run, service, dp.getCollectedAt(),
+                                dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
+                                dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
+                                dp.getNetworkOutBytes(), dp.getBlockInBytes(),
+                                dp.getBlockOutBytes()));
+                    }
+                }
+                metricResourceServiceRepository.saveAll(serviceMetrics);
             }
-            metricResourceServiceRepository.saveAll(serviceMetrics);
         }
     }
 

@@ -3,6 +3,7 @@ package dk.viplev.api.domain.services;
 import dk.viplev.api.adapter.inbound.rest.dto.HostDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationHostDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.ServiceMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
@@ -56,66 +57,71 @@ public class ServiceServiceImpl implements ServiceService {
             throw new BadRequestException("Agent token does not match the environment");
         }
 
-        validateServiceNames(registration.getServices());
+        for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
+            validateServiceNames(hostEntry.getServices());
+        }
 
         var environment = environmentRepository.findById(environmentId)
                 .orElseThrow(() -> new NotFoundException("Environment not found"));
 
-        HostDTO hostDto = registration.getHost();
-        Host host = hostRepository.findByEnvironmentIdAndMachineId(environmentId, hostDto.getMachineId())
-                .orElseGet(() -> {
-                    Host h = new Host();
-                    h.setEnvironment(environment);
-                    h.setMachineId(hostDto.getMachineId());
-                    return h;
-                });
+        for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
 
-        host.setName(hostDto.getName());
-        host.setIpAddress(hostDto.getIpAddress());
-        host.setOs(hostDto.getOs());
-        host.setOsVersion(hostDto.getOsVersion());
-        host.setCpuModel(hostDto.getCpuModel());
-        host.setCpuCores(hostDto.getCpuCores());
-        host.setCpuThreads(hostDto.getCpuThreads());
-        host.setRamTotalBytes(hostDto.getRamTotalBytes());
-        host.setRamSpeedMhz(hostDto.getRamSpeedMhz());
-        host.setRamType(hostDto.getRamType());
-        host = hostRepository.save(host);
+            HostDTO hostDto = hostEntry.getHost();
+            Host host = hostRepository.findByEnvironmentIdAndMachineId(environmentId, hostDto.getMachineId())
+                    .orElseGet(() -> {
+                        Host h = new Host();
+                        h.setEnvironment(environment);
+                        h.setMachineId(hostDto.getMachineId());
+                        return h;
+                    });
 
-        Map<String, dk.viplev.api.domain.model.Service> existingByName =
-                serviceRepository.findByHostId(host.getId()).stream()
-                        .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));
+            host.setName(hostDto.getName());
+            host.setIpAddress(hostDto.getIpAddress());
+            host.setOs(hostDto.getOs());
+            host.setOsVersion(hostDto.getOsVersion());
+            host.setCpuModel(hostDto.getCpuModel());
+            host.setCpuCores(hostDto.getCpuCores());
+            host.setCpuThreads(hostDto.getCpuThreads());
+            host.setRamTotalBytes(hostDto.getRamTotalBytes());
+            host.setRamSpeedMhz(hostDto.getRamSpeedMhz());
+            host.setRamType(hostDto.getRamType());
+            host = hostRepository.save(host);
 
-        Set<String> incomingServiceNames = new HashSet<>();
-        for (ServiceDTO dto : registration.getServices()) {
-            incomingServiceNames.add(dto.getServiceName());
+            Map<String, dk.viplev.api.domain.model.Service> existingByName =
+                    serviceRepository.findByHostId(host.getId()).stream()
+                            .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));
 
-            var existing = existingByName.get(dto.getServiceName());
-            if (existing != null) {
-                existing.setImageSha(dto.getImageSha());
-                existing.setImageName(dto.getImageName());
-                existing.setCpuLimit(dto.getCpuLimit());
-                existing.setCpuReservation(dto.getCpuReservation());
-                existing.setMemoryLimitBytes(dto.getMemoryLimitBytes());
-                existing.setMemoryReservationBytes(dto.getMemoryReservationBytes());
-                serviceRepository.save(existing);
-            } else {
-                var svc = new dk.viplev.api.domain.model.Service();
-                svc.setHost(host);
-                svc.setServiceName(dto.getServiceName());
-                svc.setImageSha(dto.getImageSha());
-                svc.setImageName(dto.getImageName());
-                svc.setCpuLimit(dto.getCpuLimit());
-                svc.setCpuReservation(dto.getCpuReservation());
-                svc.setMemoryLimitBytes(dto.getMemoryLimitBytes());
-                svc.setMemoryReservationBytes(dto.getMemoryReservationBytes());
-                serviceRepository.save(svc);
+            Set<String> incomingServiceNames = new HashSet<>();
+            for (ServiceDTO dto : hostEntry.getServices()) {
+                incomingServiceNames.add(dto.getServiceName());
+
+                var existing = existingByName.get(dto.getServiceName());
+                if (existing != null) {
+                    existing.setImageSha(dto.getImageSha());
+                    existing.setImageName(dto.getImageName());
+                    existing.setCpuLimit(dto.getCpuLimit());
+                    existing.setCpuReservation(dto.getCpuReservation());
+                    existing.setMemoryLimitBytes(dto.getMemoryLimitBytes());
+                    existing.setMemoryReservationBytes(dto.getMemoryReservationBytes());
+                    serviceRepository.save(existing);
+                } else {
+                    var svc = new dk.viplev.api.domain.model.Service();
+                    svc.setHost(host);
+                    svc.setServiceName(dto.getServiceName());
+                    svc.setImageSha(dto.getImageSha());
+                    svc.setImageName(dto.getImageName());
+                    svc.setCpuLimit(dto.getCpuLimit());
+                    svc.setCpuReservation(dto.getCpuReservation());
+                    svc.setMemoryLimitBytes(dto.getMemoryLimitBytes());
+                    svc.setMemoryReservationBytes(dto.getMemoryReservationBytes());
+                    serviceRepository.save(svc);
+                }
             }
-        }
 
-        existingByName.values().stream()
-                .filter(s -> !incomingServiceNames.contains(s.getServiceName()))
-                .forEach(serviceRepository::delete);
+            existingByName.values().stream()
+                    .filter(s -> !incomingServiceNames.contains(s.getServiceName()))
+                    .forEach(serviceRepository::delete);
+        }
     }
 
     private void validateServiceNames(List<ServiceDTO> services) {

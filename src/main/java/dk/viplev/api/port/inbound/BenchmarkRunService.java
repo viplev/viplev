@@ -16,7 +16,7 @@ public interface BenchmarkRunService {
 
     BenchmarkRunDerivedDTO getBenchmarkRunDerived(UUID environmentId, UUID benchmarkId, UUID runId, String percentiles);
 
-    BenchmarkRunRawDTO getBenchmarkRunRaw(UUID environmentId, UUID benchmarkId, UUID runId);
+    BenchmarkRunRawDTO getBenchmarkRunData(UUID environmentId, UUID benchmarkId, UUID runId);
 
     void deleteBenchmarkRun(UUID environmentId, UUID benchmarkId, UUID runId);
 }

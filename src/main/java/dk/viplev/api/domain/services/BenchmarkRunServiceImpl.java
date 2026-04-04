@@ -179,7 +179,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
     @Override
     @Transactional(readOnly = true)
-    public BenchmarkRunRawDTO getBenchmarkRunRaw(UUID environmentId, UUID benchmarkId, UUID runId) {
+    public BenchmarkRunRawDTO getBenchmarkRunData(UUID environmentId, UUID benchmarkId, UUID runId) {
         findEnvironmentByOwner(environmentId);
         findBenchmarkByEnvironment(benchmarkId, environmentId);
         benchmarkRunRepository.findByIdAndBenchmarkId(runId, benchmarkId)

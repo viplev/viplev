@@ -193,9 +193,11 @@ class AgentStoreResourceMetricsIT {
     }
 
     private String metricsBody(Map<String, Object> host, List<Map<String, Object>> services) throws Exception {
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("host", host);
-        if (services != null) body.put("services", services);
+        Map<String, Object> node = new java.util.HashMap<>();
+        node.put("machineId", host.get("machineId"));
+        node.put("metrics", host.get("metrics"));
+        if (services != null) node.put("services", services);
+        Map<String, Object> body = Map.of("hosts", List.of(node));
         return objectMapper.writeValueAsString(body);
     }
 
@@ -265,15 +267,17 @@ class AgentStoreResourceMetricsIT {
 
     private void registerServices(String envId, String envToken) throws Exception {
         String json = objectMapper.writeValueAsString(Map.of(
-                "host", Map.of(
-                        "name", "metrics-test-host",
-                        "machineId", "metrics-machine-" + UUID.randomUUID(),
-                        "os", "Linux",
-                        "ipAddress", "192.168.1.100"
-                ),
-                "services", List.of(
-                        Map.of("serviceName", "metrics-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
-                )
+                "hosts", List.of(Map.of(
+                        "host", Map.of(
+                                "name", "metrics-test-host",
+                                "machineId", "metrics-machine-" + UUID.randomUUID(),
+                                "os", "Linux",
+                                "ipAddress", "192.168.1.100"
+                        ),
+                        "services", List.of(
+                                Map.of("serviceName", "metrics-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
+                        )
+                ))
         ));
         mockMvc.perform(post("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + envToken)

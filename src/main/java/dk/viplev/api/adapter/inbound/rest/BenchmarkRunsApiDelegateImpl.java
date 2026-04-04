@@ -34,8 +34,8 @@ public class BenchmarkRunsApiDelegateImpl implements BenchmarkRunsApiDelegate {
     }
 
     @Override
-    public ResponseEntity<BenchmarkRunRawDTO> getBenchmarkRunRaw(UUID environmentId, UUID benchmarkId, UUID runId) {
-        return ResponseEntity.ok(benchmarkRunService.getBenchmarkRunRaw(environmentId, benchmarkId, runId));
+    public ResponseEntity<BenchmarkRunRawDTO> getBenchmarkRunData(UUID environmentId, UUID benchmarkId, UUID runId) {
+        return ResponseEntity.ok(benchmarkRunService.getBenchmarkRunData(environmentId, benchmarkId, runId));
     }
 
     @Override
