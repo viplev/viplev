@@ -62,6 +62,9 @@ public class ServiceServiceImpl implements ServiceService {
         }
 
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
+            if (hostEntry == null) {
+                throw new BadRequestException("Invalid registration", "hosts must not contain null entries");
+            }
             if (hostEntry.getHost() == null) {
                 throw new BadRequestException("Invalid registration", "host must not be null for each hosts entry");
             }
@@ -137,6 +140,9 @@ public class ServiceServiceImpl implements ServiceService {
     private void validateServiceNames(List<ServiceDTO> services) {
         Set<String> seen = new HashSet<>();
         for (ServiceDTO dto : services) {
+            if (dto == null) {
+                throw new BadRequestException("Invalid registration", "services must not contain null entries");
+            }
             if (dto.getServiceName() == null || dto.getServiceName().isBlank()) {
                 throw new BadRequestException("serviceName must not be null or blank");
             }

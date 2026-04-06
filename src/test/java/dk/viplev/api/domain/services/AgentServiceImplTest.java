@@ -36,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -360,6 +361,45 @@ class AgentServiceImplTest {
         node.setMachineId("machine-1");
         node.setMetrics(List.of(buildDataPoint()));
         node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenNodeInHostsIsNull() {
+        mockValidAccess();
+
+        ArrayList<MetricResourceNodeDTO> hosts = new ArrayList<>();
+        hosts.add(null);
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(hosts);
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenServiceDtoInServicesIsNull() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        ArrayList<MetricResourceServiceDTO> services = new ArrayList<>();
+        services.add(null);
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(services);
 
         MetricResourceDTO dto = new MetricResourceDTO();
         dto.setHosts(List.of(node));

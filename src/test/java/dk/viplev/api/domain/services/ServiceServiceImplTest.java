@@ -410,6 +410,44 @@ class ServiceServiceImplTest {
                 .hasMessage("Invalid registration");
     }
 
+    @Test
+    void shouldRejectNullHostEntry() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        ArrayList<ServiceRegistrationHostDTO> hosts = new ArrayList<>();
+        hosts.add(null);
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(hosts);
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
+    @Test
+    void shouldRejectNullServiceDTOInServicesList() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setName("test-host");
+        hostDto.setMachineId("abc123");
+
+        ArrayList<ServiceDTO> services = new ArrayList<>();
+        services.add(null);
+
+        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
+        hostEntry.setHost(hostDto);
+        hostEntry.setServices(services);
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
     private Service createService(String name, String imageName) {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());

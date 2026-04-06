@@ -116,6 +116,9 @@ public class AgentServiceImpl implements AgentService {
 
         // Process metrics for each node in the payload
         for (MetricResourceNodeDTO node : dto.getHosts()) {
+            if (node == null) {
+                throw new BadRequestException("Invalid resource metrics", "hosts must not contain null entries");
+            }
             if (node.getMachineId() == null || node.getMachineId().isBlank()) {
                 throw new BadRequestException("Invalid resource metrics", "machineId must not be null or blank");
             }
@@ -141,6 +144,9 @@ public class AgentServiceImpl implements AgentService {
             // Service metrics — batch-fetch all services for the host in one query
             if (node.getServices() != null && !node.getServices().isEmpty()) {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
+                    if (serviceDto == null) {
+                        throw new BadRequestException("Invalid resource metrics", "service entry must not be null");
+                    }
                     if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
                         throw new BadRequestException("Invalid resource metrics", "serviceName must not be null or blank");
                     }
