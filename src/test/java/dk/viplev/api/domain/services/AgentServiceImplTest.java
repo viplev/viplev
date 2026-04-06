@@ -258,4 +258,139 @@ class AgentServiceImplTest {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Environment not found");
     }
+
+    @Test
+    void shouldThrowWhenHostsIsNull() {
+        mockValidAccess();
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(null);
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenMachineIdIsNull() {
+        mockValidAccess();
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId(null);
+        node.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenMachineIdIsBlank() {
+        mockValidAccess();
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("   ");
+        node.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenNodeMetricsIsNull() {
+        mockValidAccess();
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(null);
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenServiceNameIsNull() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName(null);
+        serviceDto.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenServiceNameIsBlank() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName("   ");
+        serviceDto.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenServiceMetricsIsNull() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName("my-service");
+        serviceDto.setMetrics(null);
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
 }

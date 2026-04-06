@@ -362,6 +362,54 @@ class ServiceServiceImplTest {
                 .hasMessage("Duplicate serviceName: duplicate-name");
     }
 
+    @Test
+    void shouldRejectNullHosts() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(null);
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
+    @Test
+    void shouldRejectNullHostInEntry() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
+        hostEntry.setHost(null);
+        hostEntry.setServices(List.of());
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
+    @Test
+    void shouldRejectNullServicesInEntry() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setName("test-host");
+        hostDto.setMachineId("abc123");
+
+        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
+        hostEntry.setHost(hostDto);
+        hostEntry.setServices(null);
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
     private Service createService(String name, String imageName) {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());

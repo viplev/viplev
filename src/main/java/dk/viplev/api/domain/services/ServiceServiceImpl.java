@@ -57,7 +57,17 @@ public class ServiceServiceImpl implements ServiceService {
             throw new BadRequestException("Agent token does not match the environment");
         }
 
+        if (registration.getHosts() == null) {
+            throw new BadRequestException("Invalid registration", "hosts must not be null");
+        }
+
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
+            if (hostEntry.getHost() == null) {
+                throw new BadRequestException("Invalid registration", "host must not be null for each hosts entry");
+            }
+            if (hostEntry.getServices() == null) {
+                throw new BadRequestException("Invalid registration", "services must not be null for each hosts entry");
+            }
             validateServiceNames(hostEntry.getServices());
         }
 

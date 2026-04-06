@@ -110,8 +110,18 @@ public class AgentServiceImpl implements AgentService {
                     "Cannot store metrics for a run with status " + run.getStatus());
         }
 
+        if (dto.getHosts() == null) {
+            throw new BadRequestException("Invalid resource metrics", "hosts must not be null");
+        }
+
         // Process metrics for each node in the payload
         for (MetricResourceNodeDTO node : dto.getHosts()) {
+            if (node.getMachineId() == null || node.getMachineId().isBlank()) {
+                throw new BadRequestException("Invalid resource metrics", "machineId must not be null or blank");
+            }
+            if (node.getMetrics() == null) {
+                throw new BadRequestException("Invalid resource metrics", "metrics must not be null for host " + node.getMachineId());
+            }
             String machineId = node.getMachineId();
             Host host = hostRepository.findByEnvironmentIdAndMachineId(environmentId, machineId)
                     .orElseThrow(() -> new NotFoundException("Host not found",
@@ -130,6 +140,15 @@ public class AgentServiceImpl implements AgentService {
 
             // Service metrics — batch-fetch all services for the host in one query
             if (node.getServices() != null && !node.getServices().isEmpty()) {
+                for (MetricResourceServiceDTO serviceDto : node.getServices()) {
+                    if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
+                        throw new BadRequestException("Invalid resource metrics", "serviceName must not be null or blank");
+                    }
+                    if (serviceDto.getMetrics() == null) {
+                        throw new BadRequestException("Invalid resource metrics", "metrics must not be null for service " + serviceDto.getServiceName());
+                    }
+                }
+
                 Set<String> serviceNames = node.getServices().stream()
                         .map(MetricResourceServiceDTO::getServiceName)
                         .collect(Collectors.toSet());
