@@ -37,6 +37,10 @@ out/
 ### VS Code ###
 .vscode/
 
+### Claude Code ###
+.claude/
+.agents/
+
 ### Environment ###
 .env
 
