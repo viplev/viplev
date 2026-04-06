@@ -291,15 +291,17 @@ class BenchmarkRunDerivedIT {
 
     private void registerServices(String envId, String envToken) throws Exception {
         String json = objectMapper.writeValueAsString(Map.of(
-                "host", Map.of(
-                        "name", "derived-test-host",
-                        "machineId", "derived-machine-" + UUID.randomUUID(),
-                        "os", "Linux",
-                        "ipAddress", "192.168.1.200"
-                ),
-                "services", List.of(
-                        Map.of("serviceName", "derived-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
-                )
+                "hosts", List.of(Map.of(
+                        "host", Map.of(
+                                "name", "derived-test-host",
+                                "machineId", "derived-machine-" + UUID.randomUUID(),
+                                "os", "Linux",
+                                "ipAddress", "192.168.1.200"
+                        ),
+                        "services", List.of(
+                                Map.of("serviceName", "derived-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
+                        )
+                ))
         ));
         mockMvc.perform(post("/v1/environments/" + envId + "/services")
                         .header("Authorization", "Bearer " + envToken)

@@ -67,13 +67,15 @@ class ServiceApiDelegateImplIT {
 
     private Map<String, Object> buildRegistration(List<Map<String, Object>> services) {
         return Map.of(
-                "host", Map.of(
-                        "name", "test-host",
-                        "machineId", "abc123def456",
-                        "os", "Linux",
-                        "ipAddress", "192.168.1.100"
-                ),
-                "services", services
+                "hosts", List.of(Map.of(
+                        "host", Map.of(
+                                "name", "test-host",
+                                "machineId", "abc123def456",
+                                "os", "Linux",
+                                "ipAddress", "192.168.1.100"
+                        ),
+                        "services", services
+                ))
         );
     }
 
