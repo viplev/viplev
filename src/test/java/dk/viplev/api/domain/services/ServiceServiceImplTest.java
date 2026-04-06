@@ -448,6 +448,74 @@ class ServiceServiceImplTest {
                 .hasMessage("Invalid registration");
     }
 
+    @Test
+    void shouldRejectNullMachineId() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setName("test-host");
+        hostDto.setMachineId(null);
+
+        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
+        hostEntry.setHost(hostDto);
+        hostEntry.setServices(List.of());
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
+    @Test
+    void shouldRejectBlankMachineId() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setName("test-host");
+        hostDto.setMachineId("   ");
+
+        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
+        hostEntry.setHost(hostDto);
+        hostEntry.setServices(List.of());
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid registration");
+    }
+
+    @Test
+    void shouldRejectDuplicateMachineIds() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+
+        HostDTO hostDto1 = new HostDTO();
+        hostDto1.setName("host-1");
+        hostDto1.setMachineId("abc123");
+
+        ServiceRegistrationHostDTO hostEntry1 = new ServiceRegistrationHostDTO();
+        hostEntry1.setHost(hostDto1);
+        hostEntry1.setServices(List.of());
+
+        HostDTO hostDto2 = new HostDTO();
+        hostDto2.setName("host-2");
+        hostDto2.setMachineId("abc123");
+
+        ServiceRegistrationHostDTO hostEntry2 = new ServiceRegistrationHostDTO();
+        hostEntry2.setHost(hostDto2);
+        hostEntry2.setServices(List.of());
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setHosts(List.of(hostEntry1, hostEntry2));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Duplicate machineId: abc123");
+    }
+
     private Service createService(String name, String imageName) {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());

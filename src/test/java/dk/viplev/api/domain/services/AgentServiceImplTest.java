@@ -433,4 +433,60 @@ class AgentServiceImplTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Invalid resource metrics");
     }
+
+    @Test
+    void shouldThrowWhenNodeMetricsContainsNullDataPoint() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+
+        ArrayList<MetricDataPointDTO> metrics = new ArrayList<>();
+        metrics.add(null);
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(metrics);
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
+
+    @Test
+    void shouldThrowWhenServiceMetricsContainsNullDataPoint() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        dk.viplev.api.domain.model.Service svc = new dk.viplev.api.domain.model.Service();
+        svc.setId(UUID.randomUUID());
+        svc.setServiceName("my-service");
+        when(serviceRepository.findByHostIdAndServiceNameIn(eq(host.getId()), anySet()))
+                .thenReturn(List.of(svc));
+
+        ArrayList<MetricDataPointDTO> metrics = new ArrayList<>();
+        metrics.add(null);
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName("my-service");
+        serviceDto.setMetrics(metrics);
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Invalid resource metrics");
+    }
 }

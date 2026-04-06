@@ -132,6 +132,10 @@ public class AgentServiceImpl implements AgentService {
 
             List<MetricResourceHost> hostMetrics = new ArrayList<>();
             for (MetricDataPointDTO dp : node.getMetrics()) {
+                if (dp == null) {
+                    throw new BadRequestException("Invalid resource metrics",
+                            "metrics must not contain null entries for host " + node.getMachineId());
+                }
                 hostMetrics.add(new MetricResourceHost(
                         run, host, dp.getCollectedAt(),
                         dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
@@ -175,6 +179,10 @@ public class AgentServiceImpl implements AgentService {
                     Service service = servicesByName.get(serviceDto.getServiceName());
 
                     for (MetricDataPointDTO dp : serviceDto.getMetrics()) {
+                        if (dp == null) {
+                            throw new BadRequestException("Invalid resource metrics",
+                                    "metrics must not contain null entries for service " + serviceDto.getServiceName());
+                        }
                         serviceMetrics.add(new MetricResourceService(
                                 run, service, dp.getCollectedAt(),
                                 dp.getCpuPercentage(), dp.getMemoryUsageBytes(),

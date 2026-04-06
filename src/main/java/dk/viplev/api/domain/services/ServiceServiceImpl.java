@@ -61,12 +61,20 @@ public class ServiceServiceImpl implements ServiceService {
             throw new BadRequestException("Invalid registration", "hosts must not be null");
         }
 
+        Set<String> seenMachineIds = new HashSet<>();
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
             if (hostEntry == null) {
                 throw new BadRequestException("Invalid registration", "hosts must not contain null entries");
             }
             if (hostEntry.getHost() == null) {
                 throw new BadRequestException("Invalid registration", "host must not be null for each hosts entry");
+            }
+            HostDTO hostDto = hostEntry.getHost();
+            if (hostDto.getMachineId() == null || hostDto.getMachineId().isBlank()) {
+                throw new BadRequestException("Invalid registration", "machineId must not be null or blank");
+            }
+            if (!seenMachineIds.add(hostDto.getMachineId())) {
+                throw new BadRequestException("Duplicate machineId: " + hostDto.getMachineId());
             }
             if (hostEntry.getServices() == null) {
                 throw new BadRequestException("Invalid registration", "services must not be null for each hosts entry");
