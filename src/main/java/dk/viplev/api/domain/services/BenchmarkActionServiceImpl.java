@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
@@ -82,7 +83,12 @@ public class BenchmarkActionServiceImpl implements BenchmarkActionService {
                     "Run status is " + run.getStatus() + ", expected PENDING_START or STARTED");
         }
 
-        run.setStatus(BenchmarkRunStatus.PENDING_STOP);
+        if (run.getStatus() == BenchmarkRunStatus.PENDING_START) {
+            run.setStatus(BenchmarkRunStatus.STOPPED);
+            run.setFinishedAt(LocalDateTime.now());
+        } else {
+            run.setStatus(BenchmarkRunStatus.PENDING_STOP);
+        }
         benchmarkRunRepository.save(run);
 
         return toBenchmarkStatusDTO(benchmarkId, run);
