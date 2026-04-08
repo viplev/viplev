@@ -9,14 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.viplev.api.domain.model.Benchmark;
-import dk.viplev.api.domain.model.BenchmarkRun;
 import dk.viplev.api.domain.model.BenchmarkRunStatus;
 import dk.viplev.api.domain.model.Environment;
-import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
-import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
 import dk.viplev.api.port.outbound.db.EnvironmentRepository;
-import dk.viplev.api.port.outbound.db.UserRepository;
+import dk.viplev.api.util.TestObjectFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +33,9 @@ class AgentListMessagesIT {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private BenchmarkRunRepository benchmarkRunRepository;
     @Autowired private BenchmarkRepository benchmarkRepository;
-    @Autowired private UserRepository userRepository;
     @Autowired private EnvironmentRepository environmentRepository;
+    @Autowired private TestObjectFactory testObjectFactory;
 
     private String user1Token;
     private String user2Token;
@@ -61,9 +57,10 @@ class AgentListMessagesIT {
 
     @Test
     void shouldReturnPendingStopBeforePendingStartAndOnlyOneMessage() throws Exception {
-        UUID pendingStartRunId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
-        Thread.sleep(5);
-        UUID pendingStopRunId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        UUID pendingStartRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
+        UUID pendingStopRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
 
         mockMvc.perform(get(messageUrl(environmentId))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -80,9 +77,12 @@ class AgentListMessagesIT {
     void shouldReturnOldestPendingStopMessage() throws Exception {
         String benchmark2Id = createBenchmark(user1Token, environmentId, "Agent Queue Benchmark 2");
 
-        UUID oldestStopRunId = createRunDirectly(UUID.fromString(benchmark2Id), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
-        Thread.sleep(5);
-        createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        UUID oldestStopRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmark2Id), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        UUID newerStopRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        testObjectFactory.setRunCreatedAt(oldestStopRunId, LocalDateTime.of(2026, 1, 1, 10, 0));
+        testObjectFactory.setRunCreatedAt(newerStopRunId, LocalDateTime.of(2026, 1, 1, 10, 1));
 
         mockMvc.perform(get(messageUrl(environmentId))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -96,9 +96,12 @@ class AgentListMessagesIT {
     void shouldReturnOldestPendingStartWhenNoPendingStop() throws Exception {
         String benchmark2Id = createBenchmark(user1Token, environmentId, "Agent Queue Benchmark 3");
 
-        UUID oldestStartRunId = createRunDirectly(UUID.fromString(benchmark2Id), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
-        Thread.sleep(5);
-        createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
+        UUID oldestStartRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmark2Id), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
+        UUID newerStartRunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
+        testObjectFactory.setRunCreatedAt(oldestStartRunId, LocalDateTime.of(2026, 1, 1, 11, 0));
+        testObjectFactory.setRunCreatedAt(newerStartRunId, LocalDateTime.of(2026, 1, 1, 11, 1));
 
         mockMvc.perform(get(messageUrl(environmentId))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -110,7 +113,7 @@ class AgentListMessagesIT {
 
     @Test
     void shouldReturnEmptyListWhenNoPendingRuns() throws Exception {
-        createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
+        testObjectFactory.createBenchmarkRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
 
         mockMvc.perform(get(messageUrl(environmentId))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -134,12 +137,14 @@ class AgentListMessagesIT {
 
     @Test
     void shouldOnlyReturnMessagesForRequestedEnvironment() throws Exception {
-        UUID env1RunId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
+        UUID env1RunId = testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.PENDING_START);
 
         JsonNode env2 = createEnvironmentAndGetResponse("Other Agent Env", user2Token);
         String env2Id = env2.get("id").asText();
         String benchmark2Id = createBenchmark(user2Token, env2Id, "Other Benchmark");
-        createRunDirectly(UUID.fromString(benchmark2Id), "user2@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmark2Id), "user2@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
 
         mockMvc.perform(get(messageUrl(environmentId))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -154,7 +159,8 @@ class AgentListMessagesIT {
         JsonNode env2 = createEnvironmentAndGetResponse("Other Agent Env 2", user2Token);
         String env2Id = env2.get("id").asText();
         String benchmark2Id = createBenchmark(user2Token, env2Id, "Other Benchmark 2");
-        createRunDirectly(UUID.fromString(benchmark2Id), "user2@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
+        testObjectFactory.createBenchmarkRunDirectly(
+                UUID.fromString(benchmark2Id), "user2@viplev.dk", BenchmarkRunStatus.PENDING_STOP);
 
         mockMvc.perform(get(messageUrl(env2Id))
                         .header("Authorization", "Bearer " + environmentToken))
@@ -203,14 +209,4 @@ class AgentListMessagesIT {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
     }
 
-    private UUID createRunDirectly(UUID benchmarkUuid, String userEmail, BenchmarkRunStatus status) {
-        Benchmark benchmark = benchmarkRepository.findById(benchmarkUuid).orElseThrow();
-        User user = userRepository.findByEmail(userEmail).orElseThrow();
-
-        BenchmarkRun run = new BenchmarkRun();
-        run.setBenchmark(benchmark);
-        run.setStartedByUser(user);
-        run.setStatus(status);
-        return benchmarkRunRepository.saveAndFlush(run).getId();
-    }
 }
