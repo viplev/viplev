@@ -2,6 +2,7 @@ package dk.viplev.api.domain.services;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunStatusUpdateDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MessageDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricK6HttpDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricK6VusDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricPerformanceDTO;
@@ -10,10 +11,12 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
+import dk.viplev.api.adapter.inbound.rest.mapper.MessageMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.model.BenchmarkRun;
 import dk.viplev.api.domain.model.BenchmarkRunStatus;
+import dk.viplev.api.domain.model.Environment;
 import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
@@ -24,6 +27,7 @@ import dk.viplev.api.port.inbound.AgentService;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
@@ -60,8 +64,31 @@ public class AgentServiceImpl implements AgentService {
     private final MetricResourceServiceRepository metricResourceServiceRepository;
     private final MetricK6HttpRepository metricK6HttpRepository;
     private final MetricK6VusRepository metricK6VusRepository;
+    private final EnvironmentRepository environmentRepository;
     private final AuthService authService;
     private final BenchmarkRunMapper benchmarkRunMapper;
+    private final MessageMapper messageMapper;
+
+    @Override
+    @Transactional
+    public List<MessageDTO> listMessages(UUID environmentId) {
+        validateEnvironmentAccess(environmentId);
+
+        Environment environment = environmentRepository.findById(environmentId)
+                .orElseThrow(() -> new NotFoundException("Environment not found"));
+        environment.setAgentLastSeenAt(LocalDateTime.now());
+        environmentRepository.save(environment);
+
+        return benchmarkRunRepository
+                .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_STOP)
+                .map(messageMapper::toDto)
+                .map(List::of)
+                .orElseGet(() -> benchmarkRunRepository
+                        .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_START)
+                        .map(messageMapper::toDto)
+                        .map(List::of)
+                        .orElseGet(List::of));
+    }
 
     @Override
     @Transactional

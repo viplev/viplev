@@ -23,6 +23,8 @@ public interface BenchmarkRunRepository extends JpaRepository<BenchmarkRun, UUID
 
     boolean existsByBenchmarkIdAndStatusIn(UUID benchmarkId, Collection<BenchmarkRunStatus> statuses);
 
+    Optional<BenchmarkRun> findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(UUID environmentId, BenchmarkRunStatus status);
+
     @Query("SELECT br FROM BenchmarkRun br WHERE br.benchmark.environment.id = :environmentId")
     Page<BenchmarkRun> findByEnvironmentId(@Param("environmentId") UUID environmentId, Pageable pageable);
 }

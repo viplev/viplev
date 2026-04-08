@@ -2,6 +2,7 @@ package dk.viplev.api.adapter.inbound.rest;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkRunStatusUpdateDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MessageDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricPerformanceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -22,6 +24,11 @@ public class AgentApiDelegateImpl implements AgentApiDelegate {
 
     private final ServiceService serviceService;
     private final AgentService agentService;
+
+    @Override
+    public ResponseEntity<List<MessageDTO>> listMessages(UUID environmentId) {
+        return ResponseEntity.ok(agentService.listMessages(environmentId));
+    }
 
     @Override
     public ResponseEntity<Void> registerServices(UUID environmentId, ServiceRegistrationDTO serviceRegistrationDTO) {

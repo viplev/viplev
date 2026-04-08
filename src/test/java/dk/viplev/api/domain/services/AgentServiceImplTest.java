@@ -14,6 +14,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
+import dk.viplev.api.adapter.inbound.rest.mapper.MessageMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.model.BenchmarkRun;
@@ -23,6 +24,7 @@ import dk.viplev.api.domain.model.Service;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
@@ -52,8 +54,10 @@ class AgentServiceImplTest {
     @Mock private MetricResourceServiceRepository metricResourceServiceRepository;
     @Mock private MetricK6HttpRepository metricK6HttpRepository;
     @Mock private MetricK6VusRepository metricK6VusRepository;
+    @Mock private EnvironmentRepository environmentRepository;
     @Mock private AuthService authService;
     @Mock private BenchmarkRunMapper benchmarkRunMapper;
+    @Mock private MessageMapper messageMapper;
 
     private AgentServiceImpl agentService;
 
@@ -69,7 +73,8 @@ class AgentServiceImplTest {
                 benchmarkRunRepository, benchmarkRepository, hostRepository, serviceRepository,
                 metricResourceHostRepository, metricResourceServiceRepository,
                 metricK6HttpRepository, metricK6VusRepository,
-                authService, benchmarkRunMapper);
+                environmentRepository,
+                authService, benchmarkRunMapper, messageMapper);
 
         activeRun = new BenchmarkRun();
         activeRun.setId(runId);
