@@ -1,5 +1,6 @@
 package dk.viplev.api.adapter.inbound.rest;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -197,7 +198,10 @@ class BenchmarkActionsApiDelegateImplIT {
         mockMvc.perform(post(stopUrl(user1EnvironmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + user1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING_STOP"));
+                .andExpect(jsonPath("$.status").value("STOPPED"));
+
+        BenchmarkRun run = benchmarkRunRepository.findById(runId).orElseThrow();
+        assertNotNull(run.getFinishedAt());
     }
 
     @Test
