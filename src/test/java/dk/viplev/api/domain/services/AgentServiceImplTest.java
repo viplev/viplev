@@ -13,6 +13,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.MessageMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
@@ -56,6 +57,7 @@ class AgentServiceImplTest {
     @Mock private MetricK6VusRepository metricK6VusRepository;
     @Mock private EnvironmentRepository environmentRepository;
     @Mock private AuthService authService;
+    @Mock private BenchmarkMapper benchmarkMapper;
     @Mock private BenchmarkRunMapper benchmarkRunMapper;
     @Mock private MessageMapper messageMapper;
 
@@ -74,7 +76,7 @@ class AgentServiceImplTest {
                 metricResourceHostRepository, metricResourceServiceRepository,
                 metricK6HttpRepository, metricK6VusRepository,
                 environmentRepository,
-                authService, benchmarkRunMapper, messageMapper);
+                authService, benchmarkMapper, benchmarkRunMapper, messageMapper);
 
         activeRun = new BenchmarkRun();
         activeRun.setId(runId);

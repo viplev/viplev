@@ -10,6 +10,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.MessageMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
@@ -66,6 +67,7 @@ public class AgentServiceImpl implements AgentService {
     private final MetricK6VusRepository metricK6VusRepository;
     private final EnvironmentRepository environmentRepository;
     private final AuthService authService;
+    private final BenchmarkMapper benchmarkMapper;
     private final BenchmarkRunMapper benchmarkRunMapper;
     private final MessageMapper messageMapper;
 
@@ -81,13 +83,21 @@ public class AgentServiceImpl implements AgentService {
 
         return benchmarkRunRepository
                 .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_STOP)
-                .map(messageMapper::toDto)
+                .map(this::toMessageDto)
                 .map(List::of)
                 .orElseGet(() -> benchmarkRunRepository
                         .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_START)
-                        .map(messageMapper::toDto)
+                        .map(this::toMessageDto)
                         .map(List::of)
                         .orElseGet(List::of));
+    }
+
+    private MessageDTO toMessageDto(BenchmarkRun run) {
+        MessageDTO dto = messageMapper.toDto(run);
+        if (run.getStatus() == BenchmarkRunStatus.PENDING_START && run.getBenchmark() != null) {
+            dto.setBenchmarkData(benchmarkMapper.toDto(run.getBenchmark()));
+        }
+        return dto;
     }
 
     @Override
