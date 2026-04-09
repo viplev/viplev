@@ -68,7 +68,8 @@ class AgentListMessagesIT {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].benchmarkId").value(benchmarkId))
                 .andExpect(jsonPath("$[0].runId").value(pendingStopRunId.toString()))
-                .andExpect(jsonPath("$[0].messageType").value("PENDING_STOP"));
+                .andExpect(jsonPath("$[0].messageType").value("PENDING_STOP"))
+                .andExpect(jsonPath("$[0].benchmarkData").doesNotExist());
 
         assertThat(pendingStartRunId).isNotEqualTo(pendingStopRunId);
     }
@@ -108,7 +109,9 @@ class AgentListMessagesIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].runId").value(oldestStartRunId.toString()))
-                .andExpect(jsonPath("$[0].messageType").value("PENDING_START"));
+                .andExpect(jsonPath("$[0].messageType").value("PENDING_START"))
+                .andExpect(jsonPath("$[0].benchmarkData.id").value(benchmark2Id))
+                .andExpect(jsonPath("$[0].benchmarkData.name").value("Agent Queue Benchmark 3"));
     }
 
     @Test
