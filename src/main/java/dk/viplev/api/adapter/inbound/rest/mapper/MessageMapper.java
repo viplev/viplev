@@ -13,6 +13,7 @@ public interface MessageMapper {
     @Mapping(source = "benchmark.id", target = "benchmarkId")
     @Mapping(source = "id", target = "runId")
     @Mapping(source = "status", target = "messageType", qualifiedByName = "toMessageType")
+    @Mapping(target = "benchmarkData", ignore = true)
     MessageDTO toDto(BenchmarkRun benchmarkRun);
 
     @Named("toMessageType")
