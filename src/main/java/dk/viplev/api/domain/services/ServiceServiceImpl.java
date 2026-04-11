@@ -52,7 +52,11 @@ public class ServiceServiceImpl implements ServiceService {
     @Override
     @Transactional
     public void registerServices(UUID environmentId, ServiceRegistrationDTO registration) {
-        int hostCount = registration != null && registration.getHosts() != null ? registration.getHosts().size() : 0;
+        if (registration == null) {
+            throw new BadRequestException("Invalid registration", "body must not be null");
+        }
+
+        int hostCount = registration.getHosts() != null ? registration.getHosts().size() : 0;
         int serviceCount = countServices(registration);
         log.info("Registering services for environment: environmentId={}, hostCount={}, serviceCount={}",
                 environmentId, hostCount, serviceCount);

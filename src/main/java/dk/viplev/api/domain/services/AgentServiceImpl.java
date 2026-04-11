@@ -160,6 +160,10 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public void storeResourceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricResourceDTO dto) {
+        if (dto == null) {
+            throw new BadRequestException("Invalid resource metrics", "request body must not be null");
+        }
+
         int hostCount = dto != null && dto.getHosts() != null ? dto.getHosts().size() : 0;
         log.info("Storing resource metrics: environmentId={}, benchmarkId={}, runId={}, hostCount={}",
                 environmentId, benchmarkId, runId, hostCount);
@@ -269,7 +273,7 @@ public class AgentServiceImpl implements AgentService {
             }
 
             int serviceCount = node.getServices() != null ? node.getServices().size() : 0;
-            log.info("Stored resource metrics for host: environmentId={}, benchmarkId={}, runId={}, machineId={}, hostDataPoints={}, serviceCount={}, serviceDataPoints={}",
+            log.debug("Stored resource metrics for host: environmentId={}, benchmarkId={}, runId={}, machineId={}, hostDataPoints={}, serviceCount={}, serviceDataPoints={}",
                     environmentId, benchmarkId, runId, machineId, hostMetrics.size(), serviceCount, currentHostServiceMetricDataPoints);
         }
 
@@ -280,6 +284,10 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public void storePerformanceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricPerformanceDTO dto) {
+        if (dto == null) {
+            throw new BadRequestException("Invalid performance metrics", "request body must not be null");
+        }
+
         int httpMetricCount = dto != null && dto.getHttpMetrics() != null ? dto.getHttpMetrics().size() : 0;
         int vusMetricCount = dto != null && dto.getVusMetrics() != null ? dto.getVusMetrics().size() : 0;
         log.info("Storing performance metrics: environmentId={}, benchmarkId={}, runId={}, httpMetricCount={}, vusMetricCount={}",
@@ -327,7 +335,8 @@ public class AgentServiceImpl implements AgentService {
     private void validateEnvironmentAccess(UUID environmentId) {
         UUID tokenEnvironmentId = authService.getAuthenticatedEnvironmentId();
         if (!environmentId.equals(tokenEnvironmentId)) {
-            log.info("Environment access denied for agent request: environmentId={}, tokenEnvironmentId={}",
+            log.info("Environment access denied for agent request: environmentId={}", environmentId);
+            log.debug("Environment access denied details: environmentId={}, tokenEnvironmentId={}",
                     environmentId, tokenEnvironmentId);
             throw new NotFoundException("Environment not found");
         }
