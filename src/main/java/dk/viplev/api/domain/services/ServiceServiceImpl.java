@@ -52,6 +52,11 @@ public class ServiceServiceImpl implements ServiceService {
     @Override
     @Transactional
     public void registerServices(UUID environmentId, ServiceRegistrationDTO registration) {
+        int hostCount = registration != null && registration.getHosts() != null ? registration.getHosts().size() : 0;
+        int serviceCount = countServices(registration);
+        log.info("Registering services for environment: environmentId={}, hostCount={}, serviceCount={}",
+                environmentId, hostCount, serviceCount);
+
         UUID agentEnvironmentId = authService.getAuthenticatedEnvironmentId();
         if (agentEnvironmentId == null || !agentEnvironmentId.equals(environmentId)) {
             throw new BadRequestException("Agent token does not match the environment");
@@ -85,6 +90,10 @@ public class ServiceServiceImpl implements ServiceService {
         var environment = environmentRepository.findById(environmentId)
                 .orElseThrow(() -> new NotFoundException("Environment not found"));
 
+        int servicesCreated = 0;
+        int servicesUpdated = 0;
+        int servicesDeleted = 0;
+
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
 
             HostDTO hostDto = hostEntry.getHost();
@@ -108,11 +117,15 @@ public class ServiceServiceImpl implements ServiceService {
             host.setRamType(hostDto.getRamType());
             host = hostRepository.save(host);
 
+            int hostIncomingServiceCount = hostEntry.getServices() != null ? hostEntry.getServices().size() : 0;
+
             Map<String, dk.viplev.api.domain.model.Service> existingByName =
                     serviceRepository.findByHostId(host.getId()).stream()
                             .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));
 
             Set<String> incomingServiceNames = new HashSet<>();
+            int hostServicesCreated = 0;
+            int hostServicesUpdated = 0;
             for (ServiceDTO dto : hostEntry.getServices()) {
                 incomingServiceNames.add(dto.getServiceName());
 
@@ -125,6 +138,8 @@ public class ServiceServiceImpl implements ServiceService {
                     existing.setMemoryLimitBytes(dto.getMemoryLimitBytes());
                     existing.setMemoryReservationBytes(dto.getMemoryReservationBytes());
                     serviceRepository.save(existing);
+                    hostServicesUpdated++;
+                    servicesUpdated++;
                 } else {
                     var svc = new dk.viplev.api.domain.model.Service();
                     svc.setHost(host);
@@ -136,13 +151,42 @@ public class ServiceServiceImpl implements ServiceService {
                     svc.setMemoryLimitBytes(dto.getMemoryLimitBytes());
                     svc.setMemoryReservationBytes(dto.getMemoryReservationBytes());
                     serviceRepository.save(svc);
+                    hostServicesCreated++;
+                    servicesCreated++;
                 }
             }
 
-            existingByName.values().stream()
+            List<dk.viplev.api.domain.model.Service> servicesToDelete = existingByName.values().stream()
                     .filter(s -> !incomingServiceNames.contains(s.getServiceName()))
-                    .forEach(serviceRepository::delete);
+                    .toList();
+            servicesToDelete.forEach(serviceRepository::delete);
+            servicesDeleted += servicesToDelete.size();
+
+            log.info("Registered services for host: environmentId={}, machineId={}, incomingServiceCount={}, created={}, updated={}, deleted={}",
+                    environmentId,
+                    hostDto.getMachineId(),
+                    hostIncomingServiceCount,
+                    hostServicesCreated,
+                    hostServicesUpdated,
+                    servicesToDelete.size());
         }
+
+        log.info("Service registration completed: environmentId={}, hostCount={}, serviceCount={}, servicesCreated={}, servicesUpdated={}, servicesDeleted={}",
+                environmentId, registration.getHosts().size(), serviceCount, servicesCreated, servicesUpdated, servicesDeleted);
+    }
+
+    private int countServices(ServiceRegistrationDTO registration) {
+        if (registration == null || registration.getHosts() == null) {
+            return 0;
+        }
+
+        int count = 0;
+        for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
+            if (hostEntry != null && hostEntry.getServices() != null) {
+                count += hostEntry.getServices().size();
+            }
+        }
+        return count;
     }
 
     private void validateServiceNames(List<ServiceDTO> services) {
