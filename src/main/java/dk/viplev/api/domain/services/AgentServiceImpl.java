@@ -36,6 +36,7 @@ import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -49,6 +50,7 @@ import java.util.stream.Collectors;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
+@Slf4j
 public class AgentServiceImpl implements AgentService {
 
     private static final Map<BenchmarkRunStatus, Set<BenchmarkRunStatus>> VALID_TRANSITIONS = Map.of(
@@ -74,22 +76,40 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public List<MessageDTO> listMessages(UUID environmentId) {
+        log.info("Listing agent messages: environmentId={}", environmentId);
         validateEnvironmentAccess(environmentId);
 
         Environment environment = environmentRepository.findById(environmentId)
                 .orElseThrow(() -> new NotFoundException("Environment not found"));
         environment.setAgentLastSeenAt(LocalDateTime.now());
         environmentRepository.save(environment);
+        log.info("Agent heartbeat updated: environmentId={}, agentLastSeenAt={}",
+                environmentId, environment.getAgentLastSeenAt());
 
-        return benchmarkRunRepository
+        BenchmarkRun pendingStopRun = benchmarkRunRepository
                 .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_STOP)
-                .map(this::toMessageDto)
-                .map(List::of)
-                .orElseGet(() -> benchmarkRunRepository
-                        .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_START)
-                        .map(this::toMessageDto)
-                        .map(List::of)
-                        .orElseGet(List::of));
+                .orElse(null);
+
+        if (pendingStopRun != null) {
+            MessageDTO message = toMessageDto(pendingStopRun);
+            log.info("Returning agent message: environmentId={}, messageType={}, benchmarkId={}, runId={}",
+                    environmentId, message.getMessageType(), message.getBenchmarkId(), message.getRunId());
+            return List.of(message);
+        }
+
+        BenchmarkRun pendingStartRun = benchmarkRunRepository
+                .findFirstByBenchmarkEnvironmentIdAndStatusOrderByCreatedAtAsc(environmentId, BenchmarkRunStatus.PENDING_START)
+                .orElse(null);
+
+        if (pendingStartRun != null) {
+            MessageDTO message = toMessageDto(pendingStartRun);
+            log.info("Returning agent message: environmentId={}, messageType={}, benchmarkId={}, runId={}",
+                    environmentId, message.getMessageType(), message.getBenchmarkId(), message.getRunId());
+            return List.of(message);
+        }
+
+        log.info("No pending agent message found: environmentId={}", environmentId);
+        return List.of();
     }
 
     private MessageDTO toMessageDto(BenchmarkRun run) {
@@ -111,9 +131,13 @@ public class AgentServiceImpl implements AgentService {
         BenchmarkRun run = benchmarkRunRepository.findByIdAndBenchmarkId(runId, benchmarkId)
                 .orElseThrow(() -> new NotFoundException("Benchmark run not found"));
 
+        BenchmarkRunStatus currentStatus = run.getStatus();
         BenchmarkRunStatus newStatus = BenchmarkRunStatus.valueOf(dto.getStatus().name());
 
-        validateTransition(run.getStatus(), newStatus);
+        log.info("Run status update requested: environmentId={}, benchmarkId={}, runId={}, currentStatus={}, requestedStatus={}, statusReason={}",
+                environmentId, benchmarkId, runId, currentStatus, newStatus, dto.getStatusReason());
+
+        validateTransition(currentStatus, newStatus);
         validateStatusReason(newStatus, dto.getStatusReason());
 
         run.setStatus(newStatus);
@@ -127,6 +151,8 @@ public class AgentServiceImpl implements AgentService {
         }
 
         benchmarkRunRepository.save(run);
+        log.info("Run status update persisted: environmentId={}, benchmarkId={}, runId={}, previousStatus={}, persistedStatus={}, startedAt={}, finishedAt={}, statusReason={}",
+                environmentId, benchmarkId, runId, currentStatus, run.getStatus(), run.getStartedAt(), run.getFinishedAt(), run.getStatusReason());
 
         return benchmarkRunMapper.toDto(run);
     }
@@ -134,6 +160,14 @@ public class AgentServiceImpl implements AgentService {
     @Override
     @Transactional
     public void storeResourceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricResourceDTO dto) {
+        if (dto == null) {
+            throw new BadRequestException("Invalid resource metrics", "request body must not be null");
+        }
+
+        int hostCount = dto != null && dto.getHosts() != null ? dto.getHosts().size() : 0;
+        log.info("Storing resource metrics: environmentId={}, benchmarkId={}, runId={}, hostCount={}",
+                environmentId, benchmarkId, runId, hostCount);
+
         validateEnvironmentAccess(environmentId);
 
         benchmarkRepository.findByIdAndEnvironmentId(benchmarkId, environmentId)
@@ -150,6 +184,9 @@ public class AgentServiceImpl implements AgentService {
         if (dto.getHosts() == null) {
             throw new BadRequestException("Invalid resource metrics", "hosts must not be null");
         }
+
+        int totalHostMetricDataPoints = 0;
+        int totalServiceMetricDataPoints = 0;
 
         // Process metrics for each node in the payload
         for (MetricResourceNodeDTO node : dto.getHosts()) {
@@ -181,8 +218,10 @@ public class AgentServiceImpl implements AgentService {
                         dp.getBlockOutBytes()));
             }
             metricResourceHostRepository.saveAll(hostMetrics);
+            totalHostMetricDataPoints += hostMetrics.size();
 
             // Service metrics — batch-fetch all services for the host in one query
+            int currentHostServiceMetricDataPoints = 0;
             if (node.getServices() != null && !node.getServices().isEmpty()) {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     if (serviceDto == null) {
@@ -229,13 +268,31 @@ public class AgentServiceImpl implements AgentService {
                     }
                 }
                 metricResourceServiceRepository.saveAll(serviceMetrics);
+                currentHostServiceMetricDataPoints = serviceMetrics.size();
+                totalServiceMetricDataPoints += currentHostServiceMetricDataPoints;
             }
+
+            int serviceCount = node.getServices() != null ? node.getServices().size() : 0;
+            log.debug("Stored resource metrics for host: environmentId={}, benchmarkId={}, runId={}, machineId={}, hostDataPoints={}, serviceCount={}, serviceDataPoints={}",
+                    environmentId, benchmarkId, runId, machineId, hostMetrics.size(), serviceCount, currentHostServiceMetricDataPoints);
         }
+
+        log.info("Resource metrics storage completed: environmentId={}, benchmarkId={}, runId={}, hostCount={}, totalHostDataPoints={}, totalServiceDataPoints={}",
+                environmentId, benchmarkId, runId, dto.getHosts().size(), totalHostMetricDataPoints, totalServiceMetricDataPoints);
     }
 
     @Override
     @Transactional
     public void storePerformanceMetrics(UUID environmentId, UUID benchmarkId, UUID runId, MetricPerformanceDTO dto) {
+        if (dto == null) {
+            throw new BadRequestException("Invalid performance metrics", "request body must not be null");
+        }
+
+        int httpMetricCount = dto != null && dto.getHttpMetrics() != null ? dto.getHttpMetrics().size() : 0;
+        int vusMetricCount = dto != null && dto.getVusMetrics() != null ? dto.getVusMetrics().size() : 0;
+        log.info("Storing performance metrics: environmentId={}, benchmarkId={}, runId={}, httpMetricCount={}, vusMetricCount={}",
+                environmentId, benchmarkId, runId, httpMetricCount, vusMetricCount);
+
         validateEnvironmentAccess(environmentId);
 
         benchmarkRepository.findByIdAndEnvironmentId(benchmarkId, environmentId)
@@ -270,11 +327,17 @@ public class AgentServiceImpl implements AgentService {
             }
             metricK6VusRepository.saveAll(vusMetrics);
         }
+
+        log.info("Performance metrics storage completed: environmentId={}, benchmarkId={}, runId={}, persistedHttpMetrics={}, persistedVusMetrics={}",
+                environmentId, benchmarkId, runId, httpMetricCount, vusMetricCount);
     }
 
     private void validateEnvironmentAccess(UUID environmentId) {
         UUID tokenEnvironmentId = authService.getAuthenticatedEnvironmentId();
         if (!environmentId.equals(tokenEnvironmentId)) {
+            log.info("Environment access denied for agent request: environmentId={}", environmentId);
+            log.debug("Environment access denied details: environmentId={}, tokenEnvironmentId={}",
+                    environmentId, tokenEnvironmentId);
             throw new NotFoundException("Environment not found");
         }
     }
