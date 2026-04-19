@@ -164,3 +164,14 @@ databaseChangeLog:
         - sqlFile:
             path: changes/023-drop-metric-resource-services-table.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 24
+      author: viplev
+      preconditions:
+        onFail: MARK_RAN
+        dbms:
+          type: postgresql
+      changes:
+        - sqlFile:
+            path: changes/024-fix-benchmark-services-unique-constraint.sql
+            relativeToChangelogFile: true

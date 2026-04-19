@@ -15,6 +15,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.PaginationDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawHostTimeSeriesDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawK6DataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawK6TimeSeriesDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.RawReplicaTimeSeriesDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawResourceDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawServiceTimeSeriesDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.RawTimeSeriesDTO;
@@ -234,7 +235,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             List<MetricResourceReplica> hostReplicas = replicasByHost.getOrDefault(hostId, List.of());
             
             if (!hostReplicas.isEmpty()) {
-                // Group replica metrics by service, then aggregate
+                // Group replica metrics by service
                 Map<UUID, List<MetricResourceReplica>> replicasByService = hostReplicas.stream()
                         .collect(Collectors.groupingBy(m -> m.getReplica().getService().getId(), LinkedHashMap::new, Collectors.toList()));
 
@@ -250,12 +251,29 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                     serviceDto.setServiceId(serviceId);
                     serviceDto.setServiceName(serviceName);
 
-                    // Add replica-level metrics (aggregated under service)
-                    List<MetricResourceReplica> repMetrics = replicasByService.getOrDefault(serviceId, List.of());
-                    serviceDto.setDataPoints(repMetrics.stream()
-                            .map(this::toRawResourceDataPoint)
-                            .sorted(Comparator.comparing(RawResourceDataPointDTO::getTimestamp))
-                            .toList());
+                    // Group replica metrics by replica ID to create separate time series per replica
+                    List<MetricResourceReplica> serviceReplicas = replicasByService.getOrDefault(serviceId, List.of());
+                    Map<UUID, List<MetricResourceReplica>> metricsByReplica = serviceReplicas.stream()
+                            .collect(Collectors.groupingBy(m -> m.getReplica().getId(), LinkedHashMap::new, Collectors.toList()));
+
+                    // Build replica-level time series
+                    serviceDto.setReplicas(metricsByReplica.entrySet().stream().map(rEntry -> {
+                        UUID replicaId = rEntry.getKey();
+                        List<MetricResourceReplica> replicaMetricsList = rEntry.getValue();
+                        
+                        // Get container ID from first metric (all metrics for same replica have same container ID)
+                        String containerId = replicaMetricsList.isEmpty() ? null : replicaMetricsList.get(0).getReplica().getContainerId();
+                        
+                        RawReplicaTimeSeriesDTO replicaDto = new RawReplicaTimeSeriesDTO();
+                        replicaDto.setReplicaId(replicaId);
+                        replicaDto.setContainerId(containerId);
+                        replicaDto.setDataPoints(replicaMetricsList.stream()
+                                .sorted(Comparator.comparing(MetricResourceReplica::getCollectedAt))
+                                .map(this::toRawResourceDataPoint)
+                                .toList());
+                        
+                        return replicaDto;
+                    }).sorted(Comparator.comparing(RawReplicaTimeSeriesDTO::getContainerId)).toList());
                     
                     return serviceDto;
                 }).sorted(Comparator.comparing(RawServiceTimeSeriesDTO::getServiceName)).toList());

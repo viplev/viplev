@@ -40,6 +40,7 @@ import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -396,12 +397,23 @@ public class AgentServiceImpl implements AgentService {
             newReplica.setLastSeenAt(LocalDateTime.now());
             return serviceReplicaRepository.save(newReplica);
         } catch (DataIntegrityViolationException e) {
-            // Race condition: another thread created it between our check and save
-            // Retry the lookup - it should exist now
-            log.debug("Race condition detected creating replica, retrying lookup: containerId={}", replicaDto.getContainerId());
-            return serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId())
-                    .orElseThrow(() -> new BadRequestException("Failed to create or find replica after race condition",
-                            "containerId: " + replicaDto.getContainerId()));
+            // Check if this is a unique constraint violation (race condition)
+            // vs. other DB integrity issues (foreign key, check constraint, etc.)
+            Throwable cause = e.getCause();
+            if (cause instanceof ConstraintViolationException) {
+                ConstraintViolationException cve = (ConstraintViolationException) cause;
+                String constraintName = cve.getConstraintName();
+                // Only retry for unique constraint violations on service_id + container_id
+                if (constraintName != null && constraintName.contains("service_replicas_service_id_container_id_key")) {
+                    log.debug("Race condition detected creating replica, retrying lookup: containerId={}", replicaDto.getContainerId());
+                    return serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId())
+                            .orElseThrow(() -> new BadRequestException("Failed to create or find replica after race condition",
+                                    "containerId: " + replicaDto.getContainerId()));
+                }
+            }
+            // Not a unique constraint violation - rethrow to let it bubble up as 500
+            log.error("Database integrity violation creating replica: containerId={}", replicaDto.getContainerId(), e);
+            throw e;
         }
     }
 

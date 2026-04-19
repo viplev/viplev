@@ -237,6 +237,7 @@ class ServiceServiceImplTest {
         when(serviceRepository.findByHostId(host.getId()))
                 .thenReturn(new ArrayList<>(List.of(existing)));
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
         serviceService.registerServices(environmentId, buildRegistration(List.of()));
 
