@@ -8,15 +8,18 @@ import dk.viplev.api.adapter.inbound.rest.mapper.ServiceMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.model.Host;
+import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.inbound.ServiceService;
 import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
+import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 public class ServiceServiceImpl implements ServiceService {
 
     private final ServiceRepository serviceRepository;
+    private final ServiceReplicaRepository serviceReplicaRepository;
     private final HostRepository hostRepository;
     private final EnvironmentRepository environmentRepository;
     private final ServiceMapper serviceMapper;
@@ -38,7 +42,7 @@ public class ServiceServiceImpl implements ServiceService {
     @Override
     public List<ServiceDTO> listServices(UUID environmentId) {
         verifyEnvironmentOwnership(environmentId);
-        return serviceMapper.toDtoList(serviceRepository.findByHostEnvironmentId(environmentId));
+        return serviceMapper.toDtoList(serviceRepository.findByHostEnvironmentIdAndDeletedAtIsNull(environmentId));
     }
 
     @Override
@@ -96,7 +100,12 @@ public class ServiceServiceImpl implements ServiceService {
 
         int servicesCreated = 0;
         int servicesUpdated = 0;
-        int servicesDeleted = 0;
+        int servicesReactivated = 0;
+        int servicesSoftDeleted = 0;
+        int replicasCreated = 0;
+        int replicasUpdated = 0;
+        int replicasReactivated = 0;
+        int replicasSoftDeleted = 0;
 
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
 
@@ -123,6 +132,7 @@ public class ServiceServiceImpl implements ServiceService {
 
             int hostIncomingServiceCount = hostEntry.getServices() != null ? hostEntry.getServices().size() : 0;
 
+            // Get all services for this host (including soft-deleted)
             Map<String, dk.viplev.api.domain.model.Service> existingByName =
                     serviceRepository.findByHostId(host.getId()).stream()
                             .collect(Collectors.toMap(dk.viplev.api.domain.model.Service::getServiceName, s -> s));
@@ -130,11 +140,25 @@ public class ServiceServiceImpl implements ServiceService {
             Set<String> incomingServiceNames = new HashSet<>();
             int hostServicesCreated = 0;
             int hostServicesUpdated = 0;
+            int hostServicesReactivated = 0;
+            
             for (ServiceDTO dto : hostEntry.getServices()) {
                 incomingServiceNames.add(dto.getServiceName());
 
                 var existing = existingByName.get(dto.getServiceName());
                 if (existing != null) {
+                    // Service exists - check if it's soft-deleted
+                    if (existing.getDeletedAt() != null) {
+                        // Reactivate soft-deleted service
+                        existing.setDeletedAt(null);
+                        hostServicesReactivated++;
+                        servicesReactivated++;
+                        log.debug("Reactivating service: serviceName={}, serviceId={}", dto.getServiceName(), existing.getId());
+                    } else {
+                        hostServicesUpdated++;
+                        servicesUpdated++;
+                    }
+                    // Update fields
                     existing.setImageSha(dto.getImageSha());
                     existing.setImageName(dto.getImageName());
                     existing.setCpuLimit(dto.getCpuLimit());
@@ -142,9 +166,8 @@ public class ServiceServiceImpl implements ServiceService {
                     existing.setMemoryLimitBytes(dto.getMemoryLimitBytes());
                     existing.setMemoryReservationBytes(dto.getMemoryReservationBytes());
                     serviceRepository.save(existing);
-                    hostServicesUpdated++;
-                    servicesUpdated++;
                 } else {
+                    // Create new service
                     var svc = new dk.viplev.api.domain.model.Service();
                     svc.setHost(host);
                     svc.setServiceName(dto.getServiceName());
@@ -160,23 +183,41 @@ public class ServiceServiceImpl implements ServiceService {
                 }
             }
 
-            List<dk.viplev.api.domain.model.Service> servicesToDelete = existingByName.values().stream()
+            // Soft-delete services missing from payload (only active ones)
+            List<dk.viplev.api.domain.model.Service> servicesToSoftDelete = existingByName.values().stream()
                     .filter(s -> !incomingServiceNames.contains(s.getServiceName()))
+                    .filter(s -> s.getDeletedAt() == null) // Only soft-delete active services
                     .toList();
-            servicesToDelete.forEach(serviceRepository::delete);
-            servicesDeleted += servicesToDelete.size();
+            
+            LocalDateTime now = LocalDateTime.now();
+            for (dk.viplev.api.domain.model.Service service : servicesToSoftDelete) {
+                service.setDeletedAt(now);
+                serviceRepository.save(service);
+                servicesSoftDeleted++;
+                log.debug("Soft-deleting service: serviceName={}, serviceId={}", service.getServiceName(), service.getId());
+                
+                // Cascade soft-delete to all active replicas
+                List<ServiceReplica> activeReplicas = serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(service.getId());
+                for (ServiceReplica replica : activeReplicas) {
+                    replica.setDeletedAt(now);
+                    serviceReplicaRepository.save(replica);
+                    replicasSoftDeleted++;
+                    log.debug("Soft-deleting replica: containerId={}, replicaId={}", replica.getContainerId(), replica.getId());
+                }
+            }
 
-            log.info("Registered services for host: environmentId={}, machineId={}, incomingServiceCount={}, created={}, updated={}, deleted={}",
+            log.info("Registered services for host: environmentId={}, machineId={}, incomingServiceCount={}, created={}, updated={}, reactivated={}, softDeleted={}",
                     environmentId,
                     hostDto.getMachineId(),
                     hostIncomingServiceCount,
                     hostServicesCreated,
                     hostServicesUpdated,
-                    servicesToDelete.size());
+                    hostServicesReactivated,
+                    servicesToSoftDelete.size());
         }
 
-        log.info("Service registration completed: environmentId={}, hostCount={}, serviceCount={}, servicesCreated={}, servicesUpdated={}, servicesDeleted={}",
-                environmentId, registration.getHosts().size(), serviceCount, servicesCreated, servicesUpdated, servicesDeleted);
+        log.info("Service registration completed: environmentId={}, hostCount={}, serviceCount={}, servicesCreated={}, servicesUpdated={}, servicesReactivated={}, servicesSoftDeleted={}",
+                environmentId, registration.getHosts().size(), serviceCount, servicesCreated, servicesUpdated, servicesReactivated, servicesSoftDeleted);
     }
 
     private int countServices(ServiceRegistrationDTO registration) {

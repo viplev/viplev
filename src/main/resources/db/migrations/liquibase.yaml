@@ -129,3 +129,31 @@ databaseChangeLog:
         - sqlFile:
             path: changes/018-add-cascade-delete-to-parent-tables.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 19
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/019-remove-cascade-from-metric-resource-services.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 20
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/020-add-soft-delete-and-service-replicas.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 21
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/021-create-benchmark-services-table.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 22
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/022-create-metric-resource-replicas-table.sql
+            relativeToChangelogFile: true

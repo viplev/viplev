@@ -10,6 +10,7 @@ import dk.viplev.api.adapter.inbound.rest.dto.MetricDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceNodeDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceServiceReplicaDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.BenchmarkRunMapper;
 import dk.viplev.api.adapter.inbound.rest.mapper.MessageMapper;
@@ -22,8 +23,10 @@ import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
+import dk.viplev.api.domain.model.MetricResourceReplica;
 import dk.viplev.api.domain.model.MetricResourceService;
 import dk.viplev.api.domain.model.Service;
+import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.port.inbound.AgentService;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
@@ -33,10 +36,13 @@ import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
+import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
+import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -63,8 +69,10 @@ public class AgentServiceImpl implements AgentService {
     private final BenchmarkRepository benchmarkRepository;
     private final HostRepository hostRepository;
     private final ServiceRepository serviceRepository;
+    private final ServiceReplicaRepository serviceReplicaRepository;
     private final MetricResourceHostRepository metricResourceHostRepository;
     private final MetricResourceServiceRepository metricResourceServiceRepository;
+    private final MetricResourceReplicaRepository metricResourceReplicaRepository;
     private final MetricK6HttpRepository metricK6HttpRepository;
     private final MetricK6VusRepository metricK6VusRepository;
     private final EnvironmentRepository environmentRepository;
@@ -221,7 +229,7 @@ public class AgentServiceImpl implements AgentService {
             totalHostMetricDataPoints += hostMetrics.size();
 
             // Service metrics — batch-fetch all services for the host in one query
-            int currentHostServiceMetricDataPoints = 0;
+            int currentHostReplicaMetricDataPoints = 0;
             if (node.getServices() != null && !node.getServices().isEmpty()) {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     if (serviceDto == null) {
@@ -239,42 +247,85 @@ public class AgentServiceImpl implements AgentService {
                         .map(MetricResourceServiceDTO::getServiceName)
                         .collect(Collectors.toSet());
 
+                // Only fetch active services (not soft-deleted)
                 Map<String, Service> servicesByName = serviceRepository
-                        .findByHostIdAndServiceNameIn(host.getId(), serviceNames).stream()
+                        .findByHostIdAndServiceNameInAndDeletedAtIsNull(host.getId(), serviceNames).stream()
                         .collect(Collectors.toMap(Service::getServiceName, Function.identity()));
 
                 for (String name : serviceNames) {
                     if (!servicesByName.containsKey(name)) {
                         throw new NotFoundException("Service not found",
-                                "Service with name " + name + " not found on host");
+                                "Service with name " + name + " not found on host or is soft-deleted");
                     }
                 }
 
-                List<MetricResourceService> serviceMetrics = new ArrayList<>();
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     Service service = servicesByName.get(serviceDto.getServiceName());
 
-                    for (MetricDataPointDTO dp : serviceDto.getMetrics()) {
-                        if (dp == null) {
-                            throw new BadRequestException("Invalid resource metrics",
-                                    "metrics must not contain null entries for service " + serviceDto.getServiceName());
-                        }
-                        serviceMetrics.add(new MetricResourceService(
-                                run, service, dp.getCollectedAt(),
-                                dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
-                                dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
-                                dp.getNetworkOutBytes(), dp.getBlockInBytes(),
-                                dp.getBlockOutBytes()));
+                    // Agents MUST send replica data - service-level metrics are deprecated
+                    if (serviceDto.getReplicas() == null || serviceDto.getReplicas().isEmpty()) {
+                        log.warn("Service metrics without replicas received - skipping metric storage: environmentId={}, benchmarkId={}, runId={}, serviceName={}", 
+                                environmentId, benchmarkId, runId, serviceDto.getServiceName());
+                        continue; // Skip this service - no metrics stored
                     }
+
+                    // Store replica-level metrics
+                    List<MetricResourceReplica> replicaMetrics = new ArrayList<>();
+                    List<ServiceReplica> replicasToUpdate = new ArrayList<>();
+                    
+                    for (MetricResourceServiceReplicaDTO replicaDto : serviceDto.getReplicas()) {
+                        if (replicaDto == null) {
+                            throw new BadRequestException("Invalid resource metrics", "replica entry must not be null");
+                        }
+                        if (replicaDto.getContainerId() == null || replicaDto.getContainerId().isBlank()) {
+                            throw new BadRequestException("Invalid resource metrics", "containerId must not be null or blank");
+                        }
+                        if (replicaDto.getMetrics() == null) {
+                            throw new BadRequestException("Invalid resource metrics", "metrics must not be null for replica " + replicaDto.getContainerId());
+                        }
+
+                        // Find or create replica (with race condition handling)
+                        ServiceReplica replica = findOrCreateReplica(service, replicaDto);
+
+                        // Reactivate if soft-deleted
+                        if (replica.getDeletedAt() != null) {
+                            replica.setDeletedAt(null);
+                            log.debug("Reactivating replica: containerId={}, replicaId={}", replicaDto.getContainerId(), replica.getId());
+                        }
+
+                        // Update last seen
+                        replica.setLastSeenAt(LocalDateTime.now());
+                        if (replicaDto.getStartedAt() != null) {
+                            replica.setStartedAt(replicaDto.getStartedAt());
+                        }
+                        replicasToUpdate.add(replica);
+
+                        // Store metrics for this replica
+                        for (MetricDataPointDTO dp : replicaDto.getMetrics()) {
+                            if (dp == null) {
+                                throw new BadRequestException("Invalid resource metrics",
+                                        "metrics must not contain null entries for replica " + replicaDto.getContainerId());
+                            }
+                            replicaMetrics.add(new MetricResourceReplica(
+                                    run, replica, dp.getCollectedAt(),
+                                    dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
+                                    dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
+                                    dp.getNetworkOutBytes(), dp.getBlockInBytes(),
+                                    dp.getBlockOutBytes()));
+                        }
+                    }
+                    
+                    // Batch save replicas and metrics
+                    serviceReplicaRepository.saveAll(replicasToUpdate);
+                    metricResourceReplicaRepository.saveAll(replicaMetrics);
+                    currentHostReplicaMetricDataPoints += replicaMetrics.size();
                 }
-                metricResourceServiceRepository.saveAll(serviceMetrics);
-                currentHostServiceMetricDataPoints = serviceMetrics.size();
-                totalServiceMetricDataPoints += currentHostServiceMetricDataPoints;
+                totalServiceMetricDataPoints += currentHostReplicaMetricDataPoints;
             }
 
             int serviceCount = node.getServices() != null ? node.getServices().size() : 0;
-            log.debug("Stored resource metrics for host: environmentId={}, benchmarkId={}, runId={}, machineId={}, hostDataPoints={}, serviceCount={}, serviceDataPoints={}",
-                    environmentId, benchmarkId, runId, machineId, hostMetrics.size(), serviceCount, currentHostServiceMetricDataPoints);
+            log.debug("Stored resource metrics for host: environmentId={}, benchmarkId={}, runId={}, machineId={}, hostDataPoints={}, serviceCount={}, replicaDataPoints={}",
+                    environmentId, benchmarkId, runId, machineId, hostMetrics.size(), serviceCount, currentHostReplicaMetricDataPoints);
         }
 
         log.info("Resource metrics storage completed: environmentId={}, benchmarkId={}, runId={}, hostCount={}, totalHostDataPoints={}, totalServiceDataPoints={}",
@@ -330,6 +381,31 @@ public class AgentServiceImpl implements AgentService {
 
         log.info("Performance metrics storage completed: environmentId={}, benchmarkId={}, runId={}, persistedHttpMetrics={}, persistedVusMetrics={}",
                 environmentId, benchmarkId, runId, httpMetricCount, vusMetricCount);
+    }
+
+    private ServiceReplica findOrCreateReplica(Service service, MetricResourceServiceReplicaDTO replicaDto) {
+        // Try to find existing replica first
+        var existing = serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        // Replica doesn't exist - try to create it
+        try {
+            ServiceReplica newReplica = new ServiceReplica();
+            newReplica.setService(service);
+            newReplica.setContainerId(replicaDto.getContainerId());
+            newReplica.setStartedAt(replicaDto.getStartedAt());
+            newReplica.setLastSeenAt(LocalDateTime.now());
+            return serviceReplicaRepository.save(newReplica);
+        } catch (DataIntegrityViolationException e) {
+            // Race condition: another thread created it between our check and save
+            // Retry the lookup - it should exist now
+            log.debug("Race condition detected creating replica, retrying lookup: containerId={}", replicaDto.getContainerId());
+            return serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId())
+                    .orElseThrow(() -> new BadRequestException("Failed to create or find replica after race condition",
+                            "containerId: " + replicaDto.getContainerId()));
+        }
     }
 
     private void validateEnvironmentAccess(UUID environmentId) {

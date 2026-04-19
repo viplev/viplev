@@ -27,6 +27,7 @@ import dk.viplev.api.domain.model.Environment;
 import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
+import dk.viplev.api.domain.model.MetricResourceReplica;
 import dk.viplev.api.domain.model.MetricResourceService;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.inbound.BenchmarkRunService;
@@ -36,6 +37,7 @@ import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
+import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -70,6 +72,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
     private final MetricK6VusRepository metricK6VusRepository;
     private final MetricResourceHostRepository metricResourceHostRepository;
     private final MetricResourceServiceRepository metricResourceServiceRepository;
+    private final MetricResourceReplicaRepository metricResourceReplicaRepository;
 
     @Override
     public List<BenchmarkRunDTO> listBenchmarkRuns(UUID environmentId, UUID benchmarkId) {
@@ -157,12 +160,13 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
         List<MetricResourceHost> hostMetrics = metricResourceHostRepository.findByBenchmarkRunId(runId);
         List<MetricResourceService> serviceMetrics = metricResourceServiceRepository.findByBenchmarkRunId(runId);
+        List<MetricResourceReplica> replicaMetrics = metricResourceReplicaRepository.findByBenchmarkRunId(runId);
 
         BenchmarkRunDerivedDTO result = new BenchmarkRunDerivedDTO();
         result.setRun(benchmarkRunMapper.toDto(run));
         result.setHttp(buildHttpSummaries(httpMetrics, percentileValues, percentiles));
         result.setVus(buildVusSummary(vusMetrics));
-        result.setHosts(buildHostSummaries(hostMetrics, serviceMetrics, percentileValues, percentiles));
+        result.setHosts(buildHostSummaries(hostMetrics, serviceMetrics, replicaMetrics, percentileValues, percentiles));
 
         return result;
     }
@@ -187,11 +191,12 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         List<MetricResourceHost> hostMetrics = metricResourceHostRepository.findByBenchmarkRunId(runId);
         List<MetricResourceService> serviceMetrics = metricResourceServiceRepository.findByBenchmarkRunId(runId);
+        List<MetricResourceReplica> replicaMetrics = metricResourceReplicaRepository.findByBenchmarkRunId(runId);
         List<MetricK6Http> httpMetrics = metricK6HttpRepository.findByBenchmarkRunId(runId);
         List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
 
         RawTimeSeriesDTO timeSeries = new RawTimeSeriesDTO();
-        timeSeries.setHosts(buildRawHosts(hostMetrics, serviceMetrics));
+        timeSeries.setHosts(buildRawHosts(hostMetrics, serviceMetrics, replicaMetrics));
         timeSeries.setK6(buildRawK6(httpMetrics, vusMetrics));
 
         BenchmarkRunRawDTO result = new BenchmarkRunRawDTO();
@@ -200,8 +205,9 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
     }
 
     private List<RawHostTimeSeriesDTO> buildRawHosts(List<MetricResourceHost> hostMetrics,
-                                                      List<MetricResourceService> serviceMetrics) {
-        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty()) {
+                                                      List<MetricResourceService> serviceMetrics,
+                                                      List<MetricResourceReplica> replicaMetrics) {
+        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty() && replicaMetrics.isEmpty()) {
             return List.of();
         }
 
@@ -211,10 +217,15 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         Map<UUID, List<MetricResourceService>> servicesByHost = serviceMetrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
-        // Union of all host IDs from both host metrics and service metrics
+        // Group replica metrics by host (via replica -> service -> host)
+        Map<UUID, List<MetricResourceReplica>> replicasByHost = replicaMetrics.stream()
+                .collect(Collectors.groupingBy(m -> m.getReplica().getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        // Union of all host IDs from host metrics, service metrics, and replica metrics
         Map<UUID, String> allHosts = new LinkedHashMap<>();
         hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
         serviceMetrics.forEach(m -> allHosts.put(m.getService().getHost().getId(), m.getService().getHost().getName()));
+        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getService().getHost().getId(), m.getReplica().getService().getHost().getName()));
 
         return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();
@@ -231,18 +242,50 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                     .toList());
 
             List<MetricResourceService> hostServices = servicesByHost.getOrDefault(hostId, List.of());
-            if (!hostServices.isEmpty()) {
+            List<MetricResourceReplica> hostReplicas = replicasByHost.getOrDefault(hostId, List.of());
+            
+            if (!hostServices.isEmpty() || !hostReplicas.isEmpty()) {
+                // Group service-level metrics by service
                 Map<UUID, List<MetricResourceService>> groupedByService = hostServices.stream()
                         .collect(Collectors.groupingBy(m -> m.getService().getId(), LinkedHashMap::new, Collectors.toList()));
 
-                hostDto.setServices(groupedByService.entrySet().stream().map(sEntry -> {
+                // Group replica metrics by service, then aggregate
+                Map<UUID, List<MetricResourceReplica>> replicasByService = hostReplicas.stream()
+                        .collect(Collectors.groupingBy(m -> m.getReplica().getService().getId(), LinkedHashMap::new, Collectors.toList()));
+
+                // Combine service IDs from both sources
+                Map<UUID, String> allServices = new LinkedHashMap<>();
+                hostServices.forEach(m -> allServices.put(m.getService().getId(), m.getService().getServiceName()));
+                hostReplicas.forEach(m -> allServices.put(m.getReplica().getService().getId(), m.getReplica().getService().getServiceName()));
+
+                hostDto.setServices(allServices.entrySet().stream().map(sEntry -> {
+                    UUID serviceId = sEntry.getKey();
+                    String serviceName = sEntry.getValue();
+                    
                     RawServiceTimeSeriesDTO serviceDto = new RawServiceTimeSeriesDTO();
-                    serviceDto.setServiceId(sEntry.getKey());
-                    serviceDto.setServiceName(sEntry.getValue().getFirst().getService().getServiceName());
-                    serviceDto.setDataPoints(sEntry.getValue().stream()
-                            .sorted(Comparator.comparing(MetricResourceService::getCollectedAt))
+                    serviceDto.setServiceId(serviceId);
+                    serviceDto.setServiceName(serviceName);
+
+                    // Combine service-level and replica-level metrics
+                    List<RawResourceDataPointDTO> dataPoints = new ArrayList<>();
+                    
+                    // Add service-level metrics
+                    List<MetricResourceService> svcMetrics = groupedByService.getOrDefault(serviceId, List.of());
+                    dataPoints.addAll(svcMetrics.stream()
                             .map(this::toRawResourceDataPoint)
                             .toList());
+                    
+                    // Add replica-level metrics (aggregated under service)
+                    List<MetricResourceReplica> repMetrics = replicasByService.getOrDefault(serviceId, List.of());
+                    dataPoints.addAll(repMetrics.stream()
+                            .map(this::toRawResourceDataPoint)
+                            .toList());
+                    
+                    // Sort by timestamp
+                    serviceDto.setDataPoints(dataPoints.stream()
+                            .sorted(Comparator.comparing(RawResourceDataPointDTO::getTimestamp))
+                            .toList());
+                    
                     return serviceDto;
                 }).sorted(Comparator.comparing(RawServiceTimeSeriesDTO::getServiceName)).toList());
             } else {
@@ -267,6 +310,19 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
     }
 
     private RawResourceDataPointDTO toRawResourceDataPoint(MetricResourceService m) {
+        RawResourceDataPointDTO dp = new RawResourceDataPointDTO();
+        dp.setTimestamp(m.getCollectedAt());
+        dp.setCpuPercentage(m.getCpuPercentage());
+        dp.setMemoryUsageBytes(m.getMemoryUsageBytes());
+        dp.setMemoryLimitBytes(m.getMemoryLimitBytes());
+        dp.setNetworkInBytes(m.getNetworkInBytes());
+        dp.setNetworkOutBytes(m.getNetworkOutBytes());
+        dp.setBlockInBytes(m.getBlockInBytes());
+        dp.setBlockOutBytes(m.getBlockOutBytes());
+        return dp;
+    }
+
+    private RawResourceDataPointDTO toRawResourceDataPoint(MetricResourceReplica m) {
         RawResourceDataPointDTO dp = new RawResourceDataPointDTO();
         dp.setTimestamp(m.getCollectedAt());
         dp.setCpuPercentage(m.getCpuPercentage());
@@ -440,9 +496,10 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
     private List<DerivedHostSummaryDTO> buildHostSummaries(List<MetricResourceHost> hostMetrics,
                                                            List<MetricResourceService> serviceMetrics,
+                                                           List<MetricResourceReplica> replicaMetrics,
                                                            List<Double> percentileValues,
                                                            String percentileNames) {
-        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty()) {
+        if (hostMetrics.isEmpty() && serviceMetrics.isEmpty() && replicaMetrics.isEmpty()) {
             return List.of();
         }
 
@@ -454,10 +511,14 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         Map<UUID, List<MetricResourceService>> servicesByHost = serviceMetrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
-        // Union of all host IDs from both host metrics and service metrics
+        Map<UUID, List<MetricResourceReplica>> replicasByHost = replicaMetrics.stream()
+                .collect(Collectors.groupingBy(m -> m.getReplica().getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+
+        // Union of all host IDs from host metrics, service metrics, and replica metrics
         Map<UUID, String> allHosts = new LinkedHashMap<>();
         hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
         serviceMetrics.forEach(m -> allHosts.put(m.getService().getHost().getId(), m.getService().getHost().getName()));
+        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getService().getHost().getId(), m.getReplica().getService().getHost().getName()));
 
         return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();
@@ -471,18 +532,35 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
             hostSummary.setResource(metrics.isEmpty() ? null : buildResourceSummaryFromHost(metrics, percentileValues, pNames));
 
             List<MetricResourceService> hostServices = servicesByHost.getOrDefault(hostId, List.of());
-            if (!hostServices.isEmpty()) {
+            List<MetricResourceReplica> hostReplicas = replicasByHost.getOrDefault(hostId, List.of());
+            
+            if (!hostServices.isEmpty() || !hostReplicas.isEmpty()) {
+                // Group service-level metrics by service
                 Map<UUID, List<MetricResourceService>> groupedByService = hostServices.stream()
                         .collect(Collectors.groupingBy(m -> m.getService().getId(), LinkedHashMap::new, Collectors.toList()));
 
-                List<DerivedServiceSummaryDTO> serviceSummaries = groupedByService.entrySet().stream().map(sEntry -> {
+                // Group replica metrics by service
+                Map<UUID, List<MetricResourceReplica>> replicasByService = hostReplicas.stream()
+                        .collect(Collectors.groupingBy(m -> m.getReplica().getService().getId(), LinkedHashMap::new, Collectors.toList()));
+
+                // Combine service IDs from both sources
+                Map<UUID, String> allServices = new LinkedHashMap<>();
+                hostServices.forEach(m -> allServices.put(m.getService().getId(), m.getService().getServiceName()));
+                hostReplicas.forEach(m -> allServices.put(m.getReplica().getService().getId(), m.getReplica().getService().getServiceName()));
+
+                List<DerivedServiceSummaryDTO> serviceSummaries = allServices.entrySet().stream().map(sEntry -> {
                     UUID serviceId = sEntry.getKey();
-                    List<MetricResourceService> sMetrics = sEntry.getValue();
+                    String serviceName = sEntry.getValue();
 
                     DerivedServiceSummaryDTO serviceSummary = new DerivedServiceSummaryDTO();
                     serviceSummary.setServiceId(serviceId);
-                    serviceSummary.setServiceName(sMetrics.getFirst().getService().getServiceName());
-                    serviceSummary.setResource(buildResourceSummaryFromService(sMetrics, percentileValues, pNames));
+                    serviceSummary.setServiceName(serviceName);
+
+                    // Combine service-level and replica-level metrics for aggregation
+                    List<MetricResourceService> svcMetrics = groupedByService.getOrDefault(serviceId, List.of());
+                    List<MetricResourceReplica> repMetrics = replicasByService.getOrDefault(serviceId, List.of());
+                    
+                    serviceSummary.setResource(buildResourceSummaryFromServiceAndReplicas(svcMetrics, repMetrics, percentileValues, pNames));
 
                     return serviceSummary;
                 }).sorted(Comparator.comparing(DerivedServiceSummaryDTO::getServiceName)).toList();
@@ -563,6 +641,80 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                 .mapToLong(m -> Math.round(m.getBlockInBytes()))
                 .sum();
         long blockOut = metrics.stream()
+                .filter(m -> m.getBlockOutBytes() != null)
+                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
+                .sum();
+
+        DerivedResourceSummaryDTO summary = new DerivedResourceSummaryDTO();
+        summary.setCpu(buildResourceStats(cpuValues, percentileValues, percentileNames));
+        summary.setMemory(buildResourceStats(memoryValues, percentileValues, percentileNames));
+        summary.setNetworkInTotalBytes(networkIn);
+        summary.setNetworkOutTotalBytes(networkOut);
+        summary.setBlockInTotalBytes(blockIn);
+        summary.setBlockOutTotalBytes(blockOut);
+
+        return summary;
+    }
+
+    private DerivedResourceSummaryDTO buildResourceSummaryFromServiceAndReplicas(List<MetricResourceService> serviceMetrics,
+                                                                                  List<MetricResourceReplica> replicaMetrics,
+                                                                                  List<Double> percentileValues,
+                                                                                  List<String> percentileNames) {
+        // Combine CPU values from both service and replica metrics
+        List<Double> cpuValues = new ArrayList<>();
+        cpuValues.addAll(serviceMetrics.stream()
+                .filter(m -> m.getCpuPercentage() != null)
+                .map(MetricResourceService::getCpuPercentage)
+                .toList());
+        cpuValues.addAll(replicaMetrics.stream()
+                .filter(m -> m.getCpuPercentage() != null)
+                .map(MetricResourceReplica::getCpuPercentage)
+                .toList());
+
+        // Combine memory values from both service and replica metrics
+        List<Double> memoryValues = new ArrayList<>();
+        memoryValues.addAll(serviceMetrics.stream()
+                .filter(m -> m.getMemoryUsageBytes() != null)
+                .map(MetricResourceService::getMemoryUsageBytes)
+                .toList());
+        memoryValues.addAll(replicaMetrics.stream()
+                .filter(m -> m.getMemoryUsageBytes() != null)
+                .map(MetricResourceReplica::getMemoryUsageBytes)
+                .toList());
+
+        // Sum network and block I/O from both sources
+        long networkIn = serviceMetrics.stream()
+                .filter(m -> m.getNetworkInBytes() != null)
+                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
+                .sum();
+        networkIn += replicaMetrics.stream()
+                .filter(m -> m.getNetworkInBytes() != null)
+                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
+                .sum();
+
+        long networkOut = serviceMetrics.stream()
+                .filter(m -> m.getNetworkOutBytes() != null)
+                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
+                .sum();
+        networkOut += replicaMetrics.stream()
+                .filter(m -> m.getNetworkOutBytes() != null)
+                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
+                .sum();
+
+        long blockIn = serviceMetrics.stream()
+                .filter(m -> m.getBlockInBytes() != null)
+                .mapToLong(m -> Math.round(m.getBlockInBytes()))
+                .sum();
+        blockIn += replicaMetrics.stream()
+                .filter(m -> m.getBlockInBytes() != null)
+                .mapToLong(m -> Math.round(m.getBlockInBytes()))
+                .sum();
+
+        long blockOut = serviceMetrics.stream()
+                .filter(m -> m.getBlockOutBytes() != null)
+                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
+                .sum();
+        blockOut += replicaMetrics.stream()
                 .filter(m -> m.getBlockOutBytes() != null)
                 .mapToLong(m -> Math.round(m.getBlockOutBytes()))
                 .sum();
