@@ -157,3 +157,10 @@ databaseChangeLog:
         - sqlFile:
             path: changes/022-create-metric-resource-replicas-table.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 23
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/023-drop-metric-resource-services-table.sql
+            relativeToChangelogFile: true

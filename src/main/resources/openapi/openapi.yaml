@@ -1591,18 +1591,14 @@ components:
       type: object
       required:
         - serviceName
-        - metrics
+        - replicas
       properties:
         serviceName:
           type: string
           description: Docker service name known by the agent
-        metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/MetricDataPointDTO'
         replicas:
           type: array
-          description: Optional replica-level metrics for services with multiple containers
+          description: Replica-level metrics for all containers of this service (single container = 1 replica)
           items:
             $ref: '#/components/schemas/MetricResourceServiceReplicaDTO'
 

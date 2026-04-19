@@ -24,7 +24,6 @@ import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
 import dk.viplev.api.domain.model.MetricResourceReplica;
-import dk.viplev.api.domain.model.MetricResourceService;
 import dk.viplev.api.domain.model.Service;
 import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.port.inbound.AgentService;
@@ -37,7 +36,6 @@ import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
@@ -71,7 +69,6 @@ public class AgentServiceImpl implements AgentService {
     private final ServiceRepository serviceRepository;
     private final ServiceReplicaRepository serviceReplicaRepository;
     private final MetricResourceHostRepository metricResourceHostRepository;
-    private final MetricResourceServiceRepository metricResourceServiceRepository;
     private final MetricResourceReplicaRepository metricResourceReplicaRepository;
     private final MetricK6HttpRepository metricK6HttpRepository;
     private final MetricK6VusRepository metricK6VusRepository;
@@ -194,7 +191,7 @@ public class AgentServiceImpl implements AgentService {
         }
 
         int totalHostMetricDataPoints = 0;
-        int totalServiceMetricDataPoints = 0;
+        int totalReplicaMetricDataPoints = 0;
 
         // Process metrics for each node in the payload
         for (MetricResourceNodeDTO node : dto.getHosts()) {
@@ -228,7 +225,7 @@ public class AgentServiceImpl implements AgentService {
             metricResourceHostRepository.saveAll(hostMetrics);
             totalHostMetricDataPoints += hostMetrics.size();
 
-            // Service metrics — batch-fetch all services for the host in one query
+            // Replica metrics — batch-fetch all services for the host in one query
             int currentHostReplicaMetricDataPoints = 0;
             if (node.getServices() != null && !node.getServices().isEmpty()) {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
@@ -238,8 +235,8 @@ public class AgentServiceImpl implements AgentService {
                     if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
                         throw new BadRequestException("Invalid resource metrics", "serviceName must not be null or blank");
                     }
-                    if (serviceDto.getMetrics() == null) {
-                        throw new BadRequestException("Invalid resource metrics", "metrics must not be null for service " + serviceDto.getServiceName());
+                    if (serviceDto.getReplicas() == null) {
+                        throw new BadRequestException("Invalid resource metrics", "replicas must not be null for service " + serviceDto.getServiceName());
                     }
                 }
 
@@ -259,20 +256,20 @@ public class AgentServiceImpl implements AgentService {
                     }
                 }
 
+                // Accumulate all replicas and metrics for this host
+                List<MetricResourceReplica> allReplicaMetrics = new ArrayList<>();
+                List<ServiceReplica> allReplicasToUpdate = new ArrayList<>();
+                
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     Service service = servicesByName.get(serviceDto.getServiceName());
 
-                    // Agents MUST send replica data - service-level metrics are deprecated
+                    // Validate replicas array is not empty
                     if (serviceDto.getReplicas() == null || serviceDto.getReplicas().isEmpty()) {
-                        log.warn("Service metrics without replicas received - skipping metric storage: environmentId={}, benchmarkId={}, runId={}, serviceName={}", 
-                                environmentId, benchmarkId, runId, serviceDto.getServiceName());
-                        continue; // Skip this service - no metrics stored
+                        throw new BadRequestException("Invalid resource metrics", 
+                                "replicas must not be null or empty for service " + serviceDto.getServiceName());
                     }
 
                     // Store replica-level metrics
-                    List<MetricResourceReplica> replicaMetrics = new ArrayList<>();
-                    List<ServiceReplica> replicasToUpdate = new ArrayList<>();
-                    
                     for (MetricResourceServiceReplicaDTO replicaDto : serviceDto.getReplicas()) {
                         if (replicaDto == null) {
                             throw new BadRequestException("Invalid resource metrics", "replica entry must not be null");
@@ -298,7 +295,7 @@ public class AgentServiceImpl implements AgentService {
                         if (replicaDto.getStartedAt() != null) {
                             replica.setStartedAt(replicaDto.getStartedAt());
                         }
-                        replicasToUpdate.add(replica);
+                        allReplicasToUpdate.add(replica);
 
                         // Store metrics for this replica
                         for (MetricDataPointDTO dp : replicaDto.getMetrics()) {
@@ -306,7 +303,7 @@ public class AgentServiceImpl implements AgentService {
                                 throw new BadRequestException("Invalid resource metrics",
                                         "metrics must not contain null entries for replica " + replicaDto.getContainerId());
                             }
-                            replicaMetrics.add(new MetricResourceReplica(
+                            allReplicaMetrics.add(new MetricResourceReplica(
                                     run, replica, dp.getCollectedAt(),
                                     dp.getCpuPercentage(), dp.getMemoryUsageBytes(),
                                     dp.getMemoryLimitBytes(), dp.getNetworkInBytes(),
@@ -314,13 +311,13 @@ public class AgentServiceImpl implements AgentService {
                                     dp.getBlockOutBytes()));
                         }
                     }
-                    
-                    // Batch save replicas and metrics
-                    serviceReplicaRepository.saveAll(replicasToUpdate);
-                    metricResourceReplicaRepository.saveAll(replicaMetrics);
-                    currentHostReplicaMetricDataPoints += replicaMetrics.size();
                 }
-                totalServiceMetricDataPoints += currentHostReplicaMetricDataPoints;
+                
+                // Batch save all replicas and metrics for this host
+                serviceReplicaRepository.saveAll(allReplicasToUpdate);
+                metricResourceReplicaRepository.saveAll(allReplicaMetrics);
+                currentHostReplicaMetricDataPoints = allReplicaMetrics.size();
+                totalReplicaMetricDataPoints += currentHostReplicaMetricDataPoints;
             }
 
             int serviceCount = node.getServices() != null ? node.getServices().size() : 0;
@@ -328,8 +325,8 @@ public class AgentServiceImpl implements AgentService {
                     environmentId, benchmarkId, runId, machineId, hostMetrics.size(), serviceCount, currentHostReplicaMetricDataPoints);
         }
 
-        log.info("Resource metrics storage completed: environmentId={}, benchmarkId={}, runId={}, hostCount={}, totalHostDataPoints={}, totalServiceDataPoints={}",
-                environmentId, benchmarkId, runId, dto.getHosts().size(), totalHostMetricDataPoints, totalServiceMetricDataPoints);
+        log.info("Resource metrics storage completed: environmentId={}, benchmarkId={}, runId={}, hostCount={}, totalHostDataPoints={}, totalReplicaDataPoints={}",
+                environmentId, benchmarkId, runId, dto.getHosts().size(), totalHostMetricDataPoints, totalReplicaMetricDataPoints);
     }
 
     @Override

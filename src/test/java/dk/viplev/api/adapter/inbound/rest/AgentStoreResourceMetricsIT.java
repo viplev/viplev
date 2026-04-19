@@ -17,7 +17,7 @@ import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
+
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import dk.viplev.api.port.outbound.db.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +49,7 @@ class AgentStoreResourceMetricsIT {
     @Autowired private ServiceRepository serviceRepository;
     @Autowired private EnvironmentRepository environmentRepository;
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
-    @Autowired private MetricResourceServiceRepository metricResourceServiceRepository;
+    
     @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
 
     private String environmentId;

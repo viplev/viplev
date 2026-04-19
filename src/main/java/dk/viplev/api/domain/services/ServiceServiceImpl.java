@@ -102,9 +102,6 @@ public class ServiceServiceImpl implements ServiceService {
         int servicesUpdated = 0;
         int servicesReactivated = 0;
         int servicesSoftDeleted = 0;
-        int replicasCreated = 0;
-        int replicasUpdated = 0;
-        int replicasReactivated = 0;
         int replicasSoftDeleted = 0;
 
         for (ServiceRegistrationHostDTO hostEntry : registration.getHosts()) {
@@ -196,13 +193,15 @@ public class ServiceServiceImpl implements ServiceService {
                 servicesSoftDeleted++;
                 log.debug("Soft-deleting service: serviceName={}, serviceId={}", service.getServiceName(), service.getId());
                 
-                // Cascade soft-delete to all active replicas
+                // Cascade soft-delete to all active replicas (batch operation)
                 List<ServiceReplica> activeReplicas = serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(service.getId());
-                for (ServiceReplica replica : activeReplicas) {
-                    replica.setDeletedAt(now);
-                    serviceReplicaRepository.save(replica);
-                    replicasSoftDeleted++;
-                    log.debug("Soft-deleting replica: containerId={}, replicaId={}", replica.getContainerId(), replica.getId());
+                if (!activeReplicas.isEmpty()) {
+                    for (ServiceReplica replica : activeReplicas) {
+                        replica.setDeletedAt(now);
+                        replicasSoftDeleted++;
+                        log.debug("Soft-deleting replica: containerId={}, replicaId={}", replica.getContainerId(), replica.getId());
+                    }
+                    serviceReplicaRepository.saveAll(activeReplicas);
                 }
             }
 
@@ -216,8 +215,8 @@ public class ServiceServiceImpl implements ServiceService {
                     servicesToSoftDelete.size());
         }
 
-        log.info("Service registration completed: environmentId={}, hostCount={}, serviceCount={}, servicesCreated={}, servicesUpdated={}, servicesReactivated={}, servicesSoftDeleted={}",
-                environmentId, registration.getHosts().size(), serviceCount, servicesCreated, servicesUpdated, servicesReactivated, servicesSoftDeleted);
+        log.info("Service registration completed: environmentId={}, hostCount={}, serviceCount={}, servicesCreated={}, servicesUpdated={}, servicesReactivated={}, servicesSoftDeleted={}, replicasSoftDeleted={}",
+                environmentId, registration.getHosts().size(), serviceCount, servicesCreated, servicesUpdated, servicesReactivated, servicesSoftDeleted, replicasSoftDeleted);
     }
 
     private int countServices(ServiceRegistrationDTO registration) {

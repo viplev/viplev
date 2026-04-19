@@ -33,7 +33,6 @@ import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
 import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +56,6 @@ class AgentServiceImplTest {
     @Mock private ServiceRepository serviceRepository;
     @Mock private ServiceReplicaRepository serviceReplicaRepository;
     @Mock private MetricResourceHostRepository metricResourceHostRepository;
-    @Mock private MetricResourceServiceRepository metricResourceServiceRepository;
     @Mock private MetricResourceReplicaRepository metricResourceReplicaRepository;
     @Mock private MetricK6HttpRepository metricK6HttpRepository;
     @Mock private MetricK6VusRepository metricK6VusRepository;
@@ -80,7 +78,7 @@ class AgentServiceImplTest {
         agentService = new AgentServiceImpl(
                 benchmarkRunRepository, benchmarkRepository, hostRepository, serviceRepository,
                 serviceReplicaRepository,
-                metricResourceHostRepository, metricResourceServiceRepository,
+                metricResourceHostRepository,
                 metricResourceReplicaRepository,
                 metricK6HttpRepository, metricK6VusRepository,
                 environmentRepository,
@@ -133,7 +131,6 @@ class AgentServiceImplTest {
         agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto);
 
         verify(metricResourceHostRepository).saveAll(any());
-        verify(metricResourceServiceRepository, never()).saveAll(any());
     }
 
     @Test
@@ -161,7 +158,6 @@ class AgentServiceImplTest {
         agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto);
 
         verify(metricResourceHostRepository, times(2)).saveAll(any());
-        verify(metricResourceServiceRepository, never()).saveAll(any());
     }
 
     @Test
@@ -239,9 +235,13 @@ class AgentServiceImplTest {
         when(serviceRepository.findByHostIdAndServiceNameInAndDeletedAtIsNull(eq(host.getId()), anySet()))
                 .thenReturn(List.of());
 
+        MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
+        replicaDto.setContainerId("container-123");
+        replicaDto.setMetrics(List.of(buildDataPoint()));
+
         MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
         serviceDto.setServiceName("missing-service");
-        serviceDto.setMetrics(List.of(buildDataPoint()));
+        serviceDto.setReplicas(List.of(replicaDto));
 
         MetricResourceNodeDTO node = new MetricResourceNodeDTO();
         node.setMachineId("machine-1");
@@ -357,9 +357,13 @@ class AgentServiceImplTest {
                 .thenReturn(Optional.of(host));
         when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
 
+        MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
+        replicaDto.setContainerId("container-123");
+        replicaDto.setMetrics(List.of(buildDataPoint()));
+
         MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
         serviceDto.setServiceName(null);
-        serviceDto.setMetrics(List.of(buildDataPoint()));
+        serviceDto.setReplicas(List.of(replicaDto));
 
         MetricResourceNodeDTO node = new MetricResourceNodeDTO();
         node.setMachineId("machine-1");
@@ -382,9 +386,13 @@ class AgentServiceImplTest {
                 .thenReturn(Optional.of(host));
         when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
 
+        MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
+        replicaDto.setContainerId("container-123");
+        replicaDto.setMetrics(List.of(buildDataPoint()));
+
         MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
         serviceDto.setServiceName("   ");
-        serviceDto.setMetrics(List.of(buildDataPoint()));
+        serviceDto.setReplicas(List.of(replicaDto));
 
         MetricResourceNodeDTO node = new MetricResourceNodeDTO();
         node.setMachineId("machine-1");
@@ -439,7 +447,7 @@ class AgentServiceImplTest {
     }
 
     @Test
-    void shouldThrowWhenServiceMetricsIsNull() {
+    void shouldThrowWhenServiceReplicasIsNull() {
         mockValidAccess();
         Host host = buildHost("machine-1");
         when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
@@ -448,7 +456,7 @@ class AgentServiceImplTest {
 
         MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
         serviceDto.setServiceName("my-service");
-        serviceDto.setMetrics(null);
+        serviceDto.setReplicas(null);
 
         MetricResourceNodeDTO node = new MetricResourceNodeDTO();
         node.setMachineId("machine-1");
