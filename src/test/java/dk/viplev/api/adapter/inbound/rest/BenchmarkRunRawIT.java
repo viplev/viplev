@@ -14,8 +14,9 @@ import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
-import dk.viplev.api.domain.model.MetricResourceService;
+import dk.viplev.api.domain.model.MetricResourceReplica;
 import dk.viplev.api.domain.model.Service;
+import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
@@ -23,8 +24,9 @@ import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
+import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
+import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,10 +53,11 @@ class BenchmarkRunRawIT {
     @Autowired private UserRepository userRepository;
     @Autowired private HostRepository hostRepository;
     @Autowired private ServiceRepository serviceRepository;
+    @Autowired private ServiceReplicaRepository serviceReplicaRepository;
     @Autowired private MetricK6HttpRepository metricK6HttpRepository;
     @Autowired private MetricK6VusRepository metricK6VusRepository;
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
-    @Autowired private MetricResourceServiceRepository metricResourceServiceRepository;
+    @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
 
     private String user1Token;
     private String user2Token;
@@ -62,6 +65,7 @@ class BenchmarkRunRawIT {
     private String benchmarkId;
     private Host host;
     private Service service;
+    private ServiceReplica replica;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -81,6 +85,14 @@ class BenchmarkRunRawIT {
 
         List<Service> services = serviceRepository.findByHostEnvironmentId(UUID.fromString(environmentId));
         service = services.get(0);
+        
+        // Create a replica for the service
+        replica = new ServiceReplica();
+        replica.setService(service);
+        replica.setContainerId("test-container-1");
+        replica.setStartedAt(LocalDateTime.now());
+        replica.setLastSeenAt(LocalDateTime.now());
+        replica = serviceReplicaRepository.saveAndFlush(replica);
     }
 
     @Test
@@ -94,11 +106,11 @@ class BenchmarkRunRawIT {
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
                 run, host, baseTime.plusSeconds(5), 60.0, 1500.0, 2000.0, 200.0, 100.0, 30.0, 15.0));
 
-        // Seed service metrics
-        metricResourceServiceRepository.saveAndFlush(new MetricResourceService(
-                run, service, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
-        metricResourceServiceRepository.saveAndFlush(new MetricResourceService(
-                run, service, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
+        // Seed replica metrics
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
+                run, replica, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
+                run, replica, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
 
         // Seed K6 HTTP metrics
         metricK6HttpRepository.saveAndFlush(new MetricK6Http(
@@ -130,9 +142,13 @@ class BenchmarkRunRawIT {
                 .andExpect(jsonPath("$.timeSeries.hosts[0].services.length()").value(1))
                 .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].serviceId").value(service.getId().toString()))
                 .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].serviceName").value(service.getServiceName()))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].dataPoints.length()").value(2))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].dataPoints[0].cpuPercentage").value(20.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].dataPoints[1].cpuPercentage").value(30.0))
+                // Replica data nested under service
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas[0].replicaId").value(replica.getId().toString()))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas[0].containerId").value(replica.getContainerId()))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas[0].dataPoints.length()").value(2))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas[0].dataPoints[0].cpuPercentage").value(20.0))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].replicas[0].dataPoints[1].cpuPercentage").value(30.0))
                 // K6 data (HTTP + VUS interleaved chronologically)
                 .andExpect(jsonPath("$.timeSeries.k6.dataPoints.length()").value(4))
                 .andExpect(jsonPath("$.timeSeries.k6.dataPoints[0].httpResponseTimeMs").value(150))

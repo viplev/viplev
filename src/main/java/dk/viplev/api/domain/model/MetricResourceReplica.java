@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "metric_resource_services")
+@Table(name = "metric_resource_replicas")
 @Getter
-public class MetricResourceService {
+public class MetricResourceReplica {
 
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
@@ -28,8 +28,8 @@ public class MetricResourceService {
     private BenchmarkRun benchmarkRun;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
+    @JoinColumn(name = "replica_id", nullable = false)
+    private ServiceReplica replica;
 
     @Column(name = "collected_at", nullable = false)
     private LocalDateTime collectedAt;
@@ -59,14 +59,14 @@ public class MetricResourceService {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected MetricResourceService() {}
+    protected MetricResourceReplica() {}
 
-    public MetricResourceService(BenchmarkRun benchmarkRun, Service service, LocalDateTime collectedAt,
+    public MetricResourceReplica(BenchmarkRun benchmarkRun, ServiceReplica replica, LocalDateTime collectedAt,
                                  Double cpuPercentage, Double memoryUsageBytes, Double memoryLimitBytes,
                                  Double networkInBytes, Double networkOutBytes,
                                  Double blockInBytes, Double blockOutBytes) {
         this.benchmarkRun = benchmarkRun;
-        this.service = service;
+        this.replica = replica;
         this.collectedAt = collectedAt;
         this.cpuPercentage = cpuPercentage;
         this.memoryUsageBytes = memoryUsageBytes;

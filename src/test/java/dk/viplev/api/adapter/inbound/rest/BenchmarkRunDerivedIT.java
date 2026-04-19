@@ -14,7 +14,8 @@ import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.MetricK6Http;
 import dk.viplev.api.domain.model.MetricK6Vus;
 import dk.viplev.api.domain.model.MetricResourceHost;
-import dk.viplev.api.domain.model.MetricResourceService;
+import dk.viplev.api.domain.model.MetricResourceReplica;
+import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.domain.model.Service;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
@@ -23,7 +24,8 @@ import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
+import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
+import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import dk.viplev.api.port.outbound.db.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +56,8 @@ class BenchmarkRunDerivedIT {
     @Autowired private MetricK6HttpRepository metricK6HttpRepository;
     @Autowired private MetricK6VusRepository metricK6VusRepository;
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
-    @Autowired private MetricResourceServiceRepository metricResourceServiceRepository;
+    @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
+    @Autowired private ServiceReplicaRepository serviceReplicaRepository;
 
     private String user1Token;
     private String user2Token;
@@ -62,6 +65,7 @@ class BenchmarkRunDerivedIT {
     private String benchmarkId;
     private Host host;
     private Service service;
+    private ServiceReplica replica;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -81,6 +85,14 @@ class BenchmarkRunDerivedIT {
 
         List<Service> services = serviceRepository.findByHostEnvironmentId(UUID.fromString(environmentId));
         service = services.get(0);
+        
+        // Create a replica for the service
+        replica = new ServiceReplica();
+        replica.setService(service);
+        replica.setContainerId("test-container-1");
+        replica.setStartedAt(LocalDateTime.now());
+        replica.setLastSeenAt(LocalDateTime.now());
+        replica = serviceReplicaRepository.saveAndFlush(replica);
     }
 
     @Test
@@ -106,11 +118,11 @@ class BenchmarkRunDerivedIT {
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
                 run, host, baseTime.plusSeconds(5), 60.0, 1500.0, 2000.0, 200.0, 100.0, 30.0, 15.0));
 
-        // Seed 2 service resource metrics
-        metricResourceServiceRepository.saveAndFlush(new MetricResourceService(
-                run, service, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
-        metricResourceServiceRepository.saveAndFlush(new MetricResourceService(
-                run, service, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
+        // Seed 2 replica resource metrics
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
+                run, replica, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
+                run, replica, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
 
         mockMvc.perform(get(runUrl(environmentId, benchmarkId, run.getId().toString()))
                         .header("Authorization", "Bearer " + user1Token))

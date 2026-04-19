@@ -16,7 +16,8 @@ import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
-import dk.viplev.api.port.outbound.db.MetricResourceServiceRepository;
+import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
+
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import dk.viplev.api.port.outbound.db.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,8 @@ class AgentStoreResourceMetricsIT {
     @Autowired private ServiceRepository serviceRepository;
     @Autowired private EnvironmentRepository environmentRepository;
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
-    @Autowired private MetricResourceServiceRepository metricResourceServiceRepository;
+    
+    @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
 
     private String environmentId;
     private String environmentToken;
@@ -92,7 +94,7 @@ class AgentStoreResourceMetricsIT {
     @Test
     void shouldStoreServiceMetrics() throws Exception {
         UUID runId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
-        long countBefore = metricResourceServiceRepository.count();
+        long countBefore = metricResourceReplicaRepository.count();
 
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
@@ -100,14 +102,14 @@ class AgentStoreResourceMetricsIT {
                         .content(metricsBody(hostMetric(machineId), List.of(serviceMetric(serviceName)))))
                 .andExpect(status().isCreated());
 
-        assertThat(metricResourceServiceRepository.count()).isEqualTo(countBefore + 1);
+        assertThat(metricResourceReplicaRepository.count()).isEqualTo(countBefore + 1);
     }
 
     @Test
     void shouldStoreMixedHostAndServiceMetrics() throws Exception {
         UUID runId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
         long hostCountBefore = metricResourceHostRepository.count();
-        long serviceCountBefore = metricResourceServiceRepository.count();
+        long replicaCountBefore = metricResourceReplicaRepository.count();
 
         mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
                         .header("Authorization", "Bearer " + environmentToken)
@@ -116,7 +118,7 @@ class AgentStoreResourceMetricsIT {
                 .andExpect(status().isCreated());
 
         assertThat(metricResourceHostRepository.count()).isEqualTo(hostCountBefore + 1);
-        assertThat(metricResourceServiceRepository.count()).isEqualTo(serviceCountBefore + 1);
+        assertThat(metricResourceReplicaRepository.count()).isEqualTo(replicaCountBefore + 1);
     }
 
     @Test
@@ -220,15 +222,18 @@ class AgentStoreResourceMetricsIT {
     private Map<String, Object> serviceMetric(String serviceName) {
         return Map.of(
                 "serviceName", serviceName,
-                "metrics", List.of(Map.of(
-                        "collectedAt", "2025-01-15T10:00:00",
-                        "cpuPercentage", 30.2,
-                        "memoryUsageBytes", 536870912.0,
-                        "memoryLimitBytes", 1073741824.0,
-                        "networkInBytes", 200000.0,
-                        "networkOutBytes", 100000.0,
-                        "blockInBytes", 50000.0,
-                        "blockOutBytes", 25000.0
+                "replicas", List.of(Map.of(
+                        "containerId", "container-" + UUID.randomUUID(),
+                        "metrics", List.of(Map.of(
+                                "collectedAt", "2025-01-15T10:00:00",
+                                "cpuPercentage", 30.2,
+                                "memoryUsageBytes", 536870912.0,
+                                "memoryLimitBytes", 1073741824.0,
+                                "networkInBytes", 200000.0,
+                                "networkOutBytes", 100000.0,
+                                "blockInBytes", 50000.0,
+                                "blockOutBytes", 25000.0
+                        ))
                 ))
         );
     }

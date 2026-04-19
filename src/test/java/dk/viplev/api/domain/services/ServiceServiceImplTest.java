@@ -21,6 +21,7 @@ import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.EnvironmentRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
+import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class ServiceServiceImplTest {
 
     @Mock
     private ServiceRepository serviceRepository;
+
+    @Mock
+    private ServiceReplicaRepository serviceReplicaRepository;
 
     @Mock
     private HostRepository hostRepository;
@@ -61,7 +65,7 @@ class ServiceServiceImplTest {
     @BeforeEach
     void setUp() {
         serviceService = new ServiceServiceImpl(
-                serviceRepository, hostRepository, environmentRepository,
+                serviceRepository, serviceReplicaRepository, hostRepository, environmentRepository,
                 serviceMapper, authService);
 
         User owner = new User();
@@ -141,7 +145,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(environment));
 
         Service svc = createService("my-service", "nginx:latest");
-        when(serviceRepository.findByHostEnvironmentId(environmentId)).thenReturn(List.of(svc));
+        when(serviceRepository.findByHostEnvironmentIdAndDeletedAtIsNull(environmentId)).thenReturn(List.of(svc));
 
         List<ServiceDTO> result = serviceService.listServices(environmentId);
 
@@ -232,10 +236,15 @@ class ServiceServiceImplTest {
         Service existing = createService("old-service", "nginx:1.0");
         when(serviceRepository.findByHostId(host.getId()))
                 .thenReturn(new ArrayList<>(List.of(existing)));
+        when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
         serviceService.registerServices(environmentId, buildRegistration(List.of()));
 
-        verify(serviceRepository).delete(existing);
+        // Should soft-delete, not hard-delete
+        verify(serviceRepository, never()).delete(existing);
+        verify(serviceRepository).save(existing);
+        assertThat(existing.getDeletedAt()).isNotNull();
     }
 
     @Test
