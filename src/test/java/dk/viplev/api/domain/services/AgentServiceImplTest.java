@@ -253,7 +253,7 @@ class AgentServiceImplTest {
 
         assertThatThrownBy(() -> agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto))
                 .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Service");
+                .hasMessage("Service not found");
     }
 
     @Test

@@ -1,5 +1,5 @@
 -- Create metric_resource_replicas table for replica-level metrics
--- Separate from metric_resource_services to avoid ambiguity and maintain backward compatibility
+-- Separate from metric_resource_services to keep replica-only metrics unambiguous
 CREATE TABLE metric_resource_replicas (
     id UUID PRIMARY KEY,
     run_id UUID NOT NULL REFERENCES benchmark_runs(id) ON DELETE CASCADE,
