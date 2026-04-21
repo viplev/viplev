@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "service_replicas", uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "container_id"}))
+@Table(name = "service_replicas", uniqueConstraints = @UniqueConstraint(columnNames = {"container_id"}))
 @Getter
 @Setter
 public class ServiceReplica {
@@ -29,8 +29,15 @@ public class ServiceReplica {
     @JoinColumn(name = "service_id", nullable = false)
     private Service service;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "host_id", nullable = false)
+    private Host host;
+
     @Column(name = "container_id", nullable = false)
     private String containerId;
+
+    @Column(name = "container_name", nullable = false)
+    private String containerName;
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;

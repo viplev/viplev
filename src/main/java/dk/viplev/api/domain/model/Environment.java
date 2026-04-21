@@ -65,6 +65,9 @@ public class Environment implements Persistable<UUID> {
     private List<Host> hosts = new ArrayList<>();
 
     @OneToMany(mappedBy = "environment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Service> services = new ArrayList<>();
+
+    @OneToMany(mappedBy = "environment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Benchmark> benchmarks = new ArrayList<>();
 
     @Override

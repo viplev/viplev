@@ -10,19 +10,15 @@ import java.util.UUID;
 
 public interface ServiceRepository extends JpaRepository<Service, UUID> {
 
-    List<Service> findByHostEnvironmentId(UUID environmentId);
+    List<Service> findByEnvironmentId(UUID environmentId);
 
-    List<Service> findByHostEnvironmentIdAndDeletedAtIsNull(UUID environmentId);
+    List<Service> findByEnvironmentIdAndDeletedAtIsNull(UUID environmentId);
 
-    List<Service> findByHostId(UUID hostId);
+    Optional<Service> findByIdAndEnvironmentId(UUID id, UUID environmentId);
 
-    List<Service> findByHostIdAndDeletedAtIsNull(UUID hostId);
+    Optional<Service> findByServiceNameAndEnvironmentId(String serviceName, UUID environmentId);
 
-    Optional<Service> findByIdAndHostEnvironmentId(UUID id, UUID environmentId);
+    List<Service> findByEnvironmentIdAndServiceNameIn(UUID environmentId, Set<String> serviceNames);
 
-    Optional<Service> findByServiceNameAndHostId(String serviceName, UUID hostId);
-
-    List<Service> findByHostIdAndServiceNameIn(UUID hostId, Set<String> serviceNames);
-
-    List<Service> findByHostIdAndServiceNameInAndDeletedAtIsNull(UUID hostId, Set<String> serviceNames);
+    List<Service> findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(UUID environmentId, Set<String> serviceNames);
 }

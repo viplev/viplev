@@ -226,7 +226,7 @@ public class AgentServiceImpl implements AgentService {
             metricResourceHostRepository.saveAll(hostMetrics);
             totalHostMetricDataPoints += hostMetrics.size();
 
-            // Replica metrics — batch-fetch all services for the host in one query
+            // Replica metrics — batch-fetch all services for the environment in one query
             int currentHostReplicaMetricDataPoints = 0;
             if (node.getServices() != null && !node.getServices().isEmpty()) {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
@@ -245,15 +245,15 @@ public class AgentServiceImpl implements AgentService {
                         .map(MetricResourceServiceDTO::getServiceName)
                         .collect(Collectors.toSet());
 
-                // Only fetch active services (not soft-deleted)
+                // Only fetch active services (not soft-deleted) - now by environment, not host
                 Map<String, Service> servicesByName = serviceRepository
-                        .findByHostIdAndServiceNameInAndDeletedAtIsNull(host.getId(), serviceNames).stream()
+                        .findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(environmentId, serviceNames).stream()
                         .collect(Collectors.toMap(Service::getServiceName, Function.identity()));
 
                 for (String name : serviceNames) {
                     if (!servicesByName.containsKey(name)) {
                         throw new NotFoundException("Service not found",
-                                "Service with name " + name + " not found on host or is soft-deleted");
+                                "Service with name " + name + " not found in environment or is soft-deleted");
                     }
                 }
 
@@ -283,7 +283,7 @@ public class AgentServiceImpl implements AgentService {
                         }
 
                         // Find or create replica (with race condition handling)
-                        ServiceReplica replica = findOrCreateReplica(service, replicaDto);
+                        ServiceReplica replica = findOrCreateReplica(service, host, replicaDto);
 
                         // Reactivate if soft-deleted
                         if (replica.getDeletedAt() != null) {
@@ -381,7 +381,7 @@ public class AgentServiceImpl implements AgentService {
                 environmentId, benchmarkId, runId, httpMetricCount, vusMetricCount);
     }
 
-    private ServiceReplica findOrCreateReplica(Service service, MetricResourceServiceReplicaDTO replicaDto) {
+    private ServiceReplica findOrCreateReplica(Service service, Host host, MetricResourceServiceReplicaDTO replicaDto) {
         // Try to find existing replica first
         var existing = serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId());
         if (existing.isPresent()) {
@@ -392,7 +392,10 @@ public class AgentServiceImpl implements AgentService {
         try {
             ServiceReplica newReplica = new ServiceReplica();
             newReplica.setService(service);
+            newReplica.setHost(host);
             newReplica.setContainerId(replicaDto.getContainerId());
+            // Use containerId as containerName fallback if not provided
+            newReplica.setContainerName(replicaDto.getContainerId());
             newReplica.setStartedAt(replicaDto.getStartedAt());
             newReplica.setLastSeenAt(LocalDateTime.now());
             return serviceReplicaRepository.save(newReplica);
@@ -403,8 +406,11 @@ public class AgentServiceImpl implements AgentService {
             if (cause instanceof ConstraintViolationException) {
                 ConstraintViolationException cve = (ConstraintViolationException) cause;
                 String constraintName = cve.getConstraintName();
-                // Only retry for unique constraint violations on service_id + container_id
-                if (constraintName != null && constraintName.contains("service_replicas_service_id_container_id_key")) {
+                // Retry for unique constraint violations on container_id (global uniqueness)
+                // or the old composite constraint (for backwards compatibility during migration)
+                if (constraintName != null && 
+                    (constraintName.contains("service_replicas_container_id_key") ||
+                     constraintName.contains("service_replicas_service_id_container_id_key"))) {
                     log.debug("Race condition detected creating replica, retrying lookup: containerId={}", replicaDto.getContainerId());
                     return serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId())
                             .orElseThrow(() -> new BadRequestException("Failed to create or find replica after race condition",

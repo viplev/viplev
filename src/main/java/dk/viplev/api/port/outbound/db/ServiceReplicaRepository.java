@@ -14,5 +14,9 @@ public interface ServiceReplicaRepository extends JpaRepository<ServiceReplica, 
 
     Optional<ServiceReplica> findByServiceIdAndContainerId(UUID serviceId, String containerId);
 
+    Optional<ServiceReplica> findByServiceIdAndContainerIdAndDeletedAtIsNull(UUID serviceId, String containerId);
+
     List<ServiceReplica> findByServiceIdAndContainerIdIn(UUID serviceId, Set<String> containerIds);
+
+    List<ServiceReplica> findByHostIdAndDeletedAtIsNull(UUID hostId);
 }

@@ -83,13 +83,17 @@ class BenchmarkRunDerivedIT {
         List<Host> hosts = hostRepository.findByEnvironmentId(UUID.fromString(environmentId));
         host = hosts.get(0);
 
-        List<Service> services = serviceRepository.findByHostEnvironmentId(UUID.fromString(environmentId));
+        List<Service> services = serviceRepository.findByEnvironmentId(UUID.fromString(environmentId));
         service = services.get(0);
         
         // Create a replica for the service
+        // Use unique container ID to avoid conflicts across tests (global uniqueness constraint)
+        String uniqueContainerId = "test-container-" + UUID.randomUUID();
         replica = new ServiceReplica();
         replica.setService(service);
-        replica.setContainerId("test-container-1");
+        replica.setHost(host);
+        replica.setContainerId(uniqueContainerId);
+        replica.setContainerName(uniqueContainerId);
         replica.setStartedAt(LocalDateTime.now());
         replica.setLastSeenAt(LocalDateTime.now());
         replica = serviceReplicaRepository.saveAndFlush(replica);
@@ -302,17 +306,23 @@ class BenchmarkRunDerivedIT {
     }
 
     private void registerServices(String envId, String envToken) throws Exception {
+        String machineId = "derived-machine-" + UUID.randomUUID();
+        String serviceName = "derived-test-svc-" + UUID.randomUUID();
         String json = objectMapper.writeValueAsString(Map.of(
+                "services", List.of(Map.of(
+                        "serviceName", serviceName,
+                        "imageName", "nginx:latest",
+                        "replicas", List.of(Map.of(
+                                "containerId", "container-" + UUID.randomUUID(),
+                                "containerName", serviceName + "-1",
+                                "machineId", machineId
+                        ))
+                )),
                 "hosts", List.of(Map.of(
-                        "host", Map.of(
-                                "name", "derived-test-host",
-                                "machineId", "derived-machine-" + UUID.randomUUID(),
-                                "os", "Linux",
-                                "ipAddress", "192.168.1.200"
-                        ),
-                        "services", List.of(
-                                Map.of("serviceName", "derived-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
-                        )
+                        "name", "derived-test-host",
+                        "machineId", machineId,
+                        "os", "Linux",
+                        "ipAddress", "192.168.1.200"
                 ))
         ));
         mockMvc.perform(post("/v1/environments/" + envId + "/services")
