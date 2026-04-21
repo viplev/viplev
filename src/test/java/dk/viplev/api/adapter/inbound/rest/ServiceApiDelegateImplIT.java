@@ -66,15 +66,29 @@ class ServiceApiDelegateImplIT {
     }
 
     private Map<String, Object> buildRegistration(List<Map<String, Object>> services) {
+        String machineId = "abc123def456";
+        // Convert old service format to new format with replicas
+        List<Map<String, Object>> newServices = services.stream().map(svc -> {
+            String serviceName = (String) svc.get("serviceName");
+            String imageName = (String) svc.get("imageName");
+            return Map.of(
+                    "serviceName", serviceName,
+                    "imageName", imageName,
+                    "replicas", List.of(Map.of(
+                            "containerId", "container-" + UUID.randomUUID(),
+                            "containerName", serviceName + "-1",
+                            "machineId", machineId
+                    ))
+            );
+        }).toList();
+        
         return Map.of(
+                "services", newServices,
                 "hosts", List.of(Map.of(
-                        "host", Map.of(
-                                "name", "test-host",
-                                "machineId", "abc123def456",
-                                "os", "Linux",
-                                "ipAddress", "192.168.1.100"
-                        ),
-                        "services", services
+                        "name", "test-host",
+                        "machineId", machineId,
+                        "os", "Linux",
+                        "ipAddress", "192.168.1.100"
                 ))
         );
     }

@@ -73,7 +73,7 @@ class AgentStoreResourceMetricsIT {
         List<Host> hosts = hostRepository.findByEnvironmentId(UUID.fromString(environmentId));
         machineId = hosts.get(0).getMachineId();
 
-        List<Service> services = serviceRepository.findByHostEnvironmentId(UUID.fromString(environmentId));
+        List<Service> services = serviceRepository.findByEnvironmentId(UUID.fromString(environmentId));
         serviceName = services.get(0).getServiceName();
     }
 
@@ -271,17 +271,23 @@ class AgentStoreResourceMetricsIT {
     }
 
     private void registerServices(String envId, String envToken) throws Exception {
+        String machineId = "metrics-machine-" + UUID.randomUUID();
+        String serviceName = "metrics-test-svc-" + UUID.randomUUID();
         String json = objectMapper.writeValueAsString(Map.of(
+                "services", List.of(Map.of(
+                        "serviceName", serviceName,
+                        "imageName", "nginx:latest",
+                        "replicas", List.of(Map.of(
+                                "containerId", "container-" + UUID.randomUUID(),
+                                "containerName", serviceName + "-1",
+                                "machineId", machineId
+                        ))
+                )),
                 "hosts", List.of(Map.of(
-                        "host", Map.of(
-                                "name", "metrics-test-host",
-                                "machineId", "metrics-machine-" + UUID.randomUUID(),
-                                "os", "Linux",
-                                "ipAddress", "192.168.1.100"
-                        ),
-                        "services", List.of(
-                                Map.of("serviceName", "metrics-test-svc-" + UUID.randomUUID(), "imageName", "nginx:latest")
-                        )
+                        "name", "metrics-test-host",
+                        "machineId", machineId,
+                        "os", "Linux",
+                        "ipAddress", "192.168.1.100"
                 ))
         ));
         mockMvc.perform(post("/v1/environments/" + envId + "/services")

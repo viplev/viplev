@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "services", uniqueConstraints = @UniqueConstraint(columnNames = {"host_id", "service_name"}))
+@Table(name = "services", uniqueConstraints = @UniqueConstraint(columnNames = {"environment_id", "service_name"}))
 @Getter
 @Setter
 public class Service {
@@ -29,8 +29,8 @@ public class Service {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "host_id", nullable = false)
-    private Host host;
+    @JoinColumn(name = "environment_id", nullable = false)
+    private Environment environment;
 
     @Column(name = "service_name", nullable = false)
     private String serviceName;

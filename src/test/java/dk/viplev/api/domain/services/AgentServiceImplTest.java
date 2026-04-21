@@ -171,7 +171,7 @@ class AgentServiceImplTest {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());
         svc.setServiceName("my-service");
-        when(serviceRepository.findByHostIdAndServiceNameInAndDeletedAtIsNull(eq(host.getId()), anySet()))
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
                 .thenReturn(List.of(svc));
         
         // Mock replica lookup (returns empty, so a new one will be created)
@@ -232,7 +232,7 @@ class AgentServiceImplTest {
         when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
                 .thenReturn(Optional.of(host));
         when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
-        when(serviceRepository.findByHostIdAndServiceNameInAndDeletedAtIsNull(eq(host.getId()), anySet()))
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
                 .thenReturn(List.of());
 
         MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
@@ -504,7 +504,7 @@ class AgentServiceImplTest {
         dk.viplev.api.domain.model.Service svc = new dk.viplev.api.domain.model.Service();
         svc.setId(UUID.randomUUID());
         svc.setServiceName("my-service");
-        when(serviceRepository.findByHostIdAndServiceNameInAndDeletedAtIsNull(eq(host.getId()), anySet()))
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
                 .thenReturn(List.of(svc));
 
         // Mock replica lookup (returns empty, so a new one will be created)

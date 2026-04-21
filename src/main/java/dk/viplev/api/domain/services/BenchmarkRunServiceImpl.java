@@ -209,14 +209,14 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         Map<UUID, List<MetricResourceHost>> groupedByHost = hostMetrics.stream()
                 .collect(Collectors.groupingBy(m -> m.getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
-        // Group replica metrics by host (via replica -> service -> host)
+        // Group replica metrics by host (via replica -> host)
         Map<UUID, List<MetricResourceReplica>> replicasByHost = replicaMetrics.stream()
-                .collect(Collectors.groupingBy(m -> m.getReplica().getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(m -> m.getReplica().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
         // Union of all host IDs from host metrics and replica metrics
         Map<UUID, String> allHosts = new LinkedHashMap<>();
         hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
-        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getService().getHost().getId(), m.getReplica().getService().getHost().getName()));
+        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getHost().getId(), m.getReplica().getHost().getName()));
 
         return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();
@@ -484,12 +484,12 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
                 .collect(Collectors.groupingBy(m -> m.getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
         Map<UUID, List<MetricResourceReplica>> replicasByHost = replicaMetrics.stream()
-                .collect(Collectors.groupingBy(m -> m.getReplica().getService().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(m -> m.getReplica().getHost().getId(), LinkedHashMap::new, Collectors.toList()));
 
         // Union of all host IDs from host metrics and replica metrics
         Map<UUID, String> allHosts = new LinkedHashMap<>();
         hostMetrics.forEach(m -> allHosts.put(m.getHost().getId(), m.getHost().getName()));
-        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getService().getHost().getId(), m.getReplica().getService().getHost().getName()));
+        replicaMetrics.forEach(m -> allHosts.put(m.getReplica().getHost().getId(), m.getReplica().getHost().getName()));
 
         return allHosts.entrySet().stream().map(entry -> {
             UUID hostId = entry.getKey();

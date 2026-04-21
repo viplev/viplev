@@ -8,9 +8,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dk.viplev.api.adapter.inbound.rest.dto.HostDTO;
-import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
-import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationHostDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationServiceDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceReplicaDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.ServiceDTO;
 import dk.viplev.api.adapter.inbound.rest.mapper.ServiceMapper;
 import dk.viplev.api.domain.exception.BadRequestException;
 import dk.viplev.api.domain.exception.NotFoundException;
@@ -82,38 +83,30 @@ class ServiceServiceImplTest {
         host.setMachineId("abc123");
     }
 
-    private ServiceRegistrationDTO buildRegistration(List<ServiceDTO> services) {
+    private ServiceRegistrationDTO buildRegistration(List<ServiceRegistrationServiceDTO> services) {
         return buildRegistrationForHost("abc123", "test-host", services);
     }
 
-    private ServiceRegistrationDTO buildRegistrationForHost(String machineId, String hostName, List<ServiceDTO> services) {
+    private ServiceRegistrationDTO buildRegistrationForHost(String machineId, String hostName, List<ServiceRegistrationServiceDTO> services) {
         HostDTO hostDto = new HostDTO();
         hostDto.setName(hostName);
         hostDto.setMachineId(machineId);
         hostDto.setOs("Linux");
         hostDto.setIpAddress("192.168.1.100");
 
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(hostDto);
-        hostEntry.setServices(services);
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
+        reg.setServices(services);
+        reg.setHosts(List.of(hostDto));
         return reg;
     }
 
     private ServiceRegistrationDTO buildMultiHostRegistration(
-            String machineId1, List<ServiceDTO> services1,
-            String machineId2, List<ServiceDTO> services2) {
+            String machineId1, String machineId2, List<ServiceRegistrationServiceDTO> services) {
         HostDTO hostDto1 = new HostDTO();
         hostDto1.setName("host-" + machineId1);
         hostDto1.setMachineId(machineId1);
         hostDto1.setOs("Linux");
         hostDto1.setIpAddress("192.168.1.100");
-
-        ServiceRegistrationHostDTO hostEntry1 = new ServiceRegistrationHostDTO();
-        hostEntry1.setHost(hostDto1);
-        hostEntry1.setServices(services1);
 
         HostDTO hostDto2 = new HostDTO();
         hostDto2.setName("host-" + machineId2);
@@ -121,13 +114,23 @@ class ServiceServiceImplTest {
         hostDto2.setOs("Linux");
         hostDto2.setIpAddress("192.168.1.101");
 
-        ServiceRegistrationHostDTO hostEntry2 = new ServiceRegistrationHostDTO();
-        hostEntry2.setHost(hostDto2);
-        hostEntry2.setServices(services2);
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry1, hostEntry2));
+        reg.setServices(services);
+        reg.setHosts(List.of(hostDto1, hostDto2));
         return reg;
+    }
+
+    private ServiceRegistrationServiceDTO buildServiceWithReplica(String serviceName, String imageName, String containerId, String containerName, String machineId) {
+        ServiceReplicaDTO replica = new ServiceReplicaDTO();
+        replica.setContainerId(containerId);
+        replica.setContainerName(containerName);
+        replica.setMachineId(machineId);
+
+        ServiceRegistrationServiceDTO service = new ServiceRegistrationServiceDTO();
+        service.setServiceName(serviceName);
+        service.setImageName(imageName);
+        service.setReplicas(List.of(replica));
+        return service;
     }
 
     private void mockAgentAuth() {
@@ -145,7 +148,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(environment));
 
         Service svc = createService("my-service", "nginx:latest");
-        when(serviceRepository.findByHostEnvironmentIdAndDeletedAtIsNull(environmentId)).thenReturn(List.of(svc));
+        when(serviceRepository.findByEnvironmentIdAndDeletedAtIsNull(environmentId)).thenReturn(List.of(svc));
 
         List<ServiceDTO> result = serviceService.listServices(environmentId);
 
@@ -161,7 +164,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(environment));
 
         Service svc = createService("my-service", "nginx:latest");
-        when(serviceRepository.findByIdAndHostEnvironmentId(svc.getId(), environmentId))
+        when(serviceRepository.findByIdAndEnvironmentId(svc.getId(), environmentId))
                 .thenReturn(Optional.of(svc));
 
         ServiceDTO result = serviceService.getService(environmentId, svc.getId());
@@ -176,7 +179,7 @@ class ServiceServiceImplTest {
                 .thenReturn(Optional.of(environment));
 
         UUID serviceId = UUID.randomUUID();
-        when(serviceRepository.findByIdAndHostEnvironmentId(serviceId, environmentId))
+        when(serviceRepository.findByIdAndEnvironmentId(serviceId, environmentId))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> serviceService.getService(environmentId, serviceId))
@@ -198,16 +201,16 @@ class ServiceServiceImplTest {
     @Test
     void shouldRegisterNewServices() {
         mockAgentAuth();
-        when(serviceRepository.findByHostId(host.getId())).thenReturn(new ArrayList<>());
+        when(serviceRepository.findByEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        ServiceDTO dto = new ServiceDTO();
-        dto.setServiceName("new-service");
-        dto.setImageName("nginx:latest");
+        ServiceRegistrationServiceDTO service = buildServiceWithReplica("new-service", "nginx:latest", "container123", "new-service-1", "abc123");
 
-        serviceService.registerServices(environmentId, buildRegistration(List.of(dto)));
+        serviceService.registerServices(environmentId, buildRegistration(List.of(service)));
 
         verify(serviceRepository).save(any());
+        verify(serviceReplicaRepository).save(any());
     }
 
     @Test
@@ -215,15 +218,16 @@ class ServiceServiceImplTest {
         mockAgentAuth();
 
         Service existing = createService("my-service", "nginx:1.0");
-        when(serviceRepository.findByHostId(host.getId()))
+        when(serviceRepository.findByEnvironmentId(environmentId))
                 .thenReturn(new ArrayList<>(List.of(existing)));
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
+        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
-        ServiceDTO dto = new ServiceDTO();
-        dto.setServiceName("my-service");
-        dto.setImageName("nginx:2.0");
+        ServiceRegistrationServiceDTO service = buildServiceWithReplica("my-service", "nginx:2.0", "container123", "my-service-1", "abc123");
 
-        serviceService.registerServices(environmentId, buildRegistration(List.of(dto)));
+        serviceService.registerServices(environmentId, buildRegistration(List.of(service)));
 
         verify(serviceRepository).save(any());
         assertThat(existing.getImageName()).isEqualTo("nginx:2.0");
@@ -234,7 +238,7 @@ class ServiceServiceImplTest {
         mockAgentAuth();
 
         Service existing = createService("old-service", "nginx:1.0");
-        when(serviceRepository.findByHostId(host.getId()))
+        when(serviceRepository.findByEnvironmentId(environmentId))
                 .thenReturn(new ArrayList<>(List.of(existing)));
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
@@ -268,11 +272,13 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectNullServiceName() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
-        ServiceDTO dto = new ServiceDTO();
-        dto.setImageName("nginx:latest");
+        ServiceRegistrationServiceDTO service = new ServiceRegistrationServiceDTO();
+        service.setImageName("nginx:latest");
+        service.setReplicas(List.of());
 
-        assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(dto))))
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(service))))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("serviceName must not be null or blank");
     }
@@ -280,16 +286,12 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectDuplicateServiceNames() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
-        ServiceDTO dto1 = new ServiceDTO();
-        dto1.setServiceName("same-name");
-        dto1.setImageName("nginx:latest");
+        ServiceRegistrationServiceDTO service1 = buildServiceWithReplica("same-name", "nginx:latest", "c1", "c1", "abc123");
+        ServiceRegistrationServiceDTO service2 = buildServiceWithReplica("same-name", "redis:7", "c2", "c2", "abc123");
 
-        ServiceDTO dto2 = new ServiceDTO();
-        dto2.setServiceName("same-name");
-        dto2.setImageName("redis:7");
-
-        assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(dto1, dto2))))
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Duplicate serviceName: same-name");
     }
@@ -305,14 +307,15 @@ class ServiceServiceImplTest {
             h.setId(UUID.randomUUID());
             return h;
         });
-        when(serviceRepository.findByHostId(any())).thenReturn(new ArrayList<>());
+        when(serviceRepository.findByEnvironmentId(any())).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
-        ServiceDTO dto = new ServiceDTO();
-        dto.setServiceName("new-service");
-        dto.setImageName("nginx:latest");
+        ServiceRegistrationServiceDTO service = buildServiceWithReplica("new-service", "nginx:latest", "c1", "c1", "abc123");
 
-        serviceService.registerServices(environmentId, buildRegistration(List.of(dto)));
+        serviceService.registerServices(environmentId, buildRegistration(List.of(service)));
 
         verify(hostRepository).save(any());
         verify(serviceRepository).save(any());
@@ -334,23 +337,18 @@ class ServiceServiceImplTest {
         when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "node2"))
                 .thenReturn(Optional.of(host2));
         when(hostRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(serviceRepository.findByHostId(host.getId())).thenReturn(new ArrayList<>());
-        when(serviceRepository.findByHostId(host2Id)).thenReturn(new ArrayList<>());
+        when(serviceRepository.findByEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
-        ServiceDTO dto1 = new ServiceDTO();
-        dto1.setServiceName("service-on-host1");
-        dto1.setImageName("nginx:latest");
-
-        ServiceDTO dto2 = new ServiceDTO();
-        dto2.setServiceName("service-on-host2");
-        dto2.setImageName("redis:7");
+        ServiceRegistrationServiceDTO service1 = buildServiceWithReplica("service-on-host1", "nginx:latest", "c1", "c1", "abc123");
+        ServiceRegistrationServiceDTO service2 = buildServiceWithReplica("service-on-host2", "redis:7", "c2", "c2", "node2");
 
         serviceService.registerServices(environmentId, buildMultiHostRegistration(
-                "abc123", List.of(dto1),
-                "node2", List.of(dto2)));
+                "abc123", "node2", List.of(service1, service2)));
 
-        // save called once per host (2 hosts) + once per service (2 services) = but hostRepository.save called twice
         verify(hostRepository, org.mockito.Mockito.times(2)).save(any());
         verify(serviceRepository, org.mockito.Mockito.times(2)).save(any());
     }
@@ -358,15 +356,13 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectDuplicateServiceNamesPerHost() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
-        ServiceDTO dto1 = new ServiceDTO();
-        dto1.setServiceName("duplicate-name");
-
-        ServiceDTO dto2 = new ServiceDTO();
-        dto2.setServiceName("duplicate-name");
+        ServiceRegistrationServiceDTO service1 = buildServiceWithReplica("duplicate-name", "nginx:latest", "c1", "c1", "abc123");
+        ServiceRegistrationServiceDTO service2 = buildServiceWithReplica("duplicate-name", "redis:7", "c2", "c2", "abc123");
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId,
-                buildRegistration(List.of(dto1, dto2))))
+                buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Duplicate serviceName: duplicate-name");
     }
@@ -376,6 +372,7 @@ class ServiceServiceImplTest {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
 
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setServices(List.of());
         reg.setHosts(null);
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
@@ -384,35 +381,12 @@ class ServiceServiceImplTest {
     }
 
     @Test
-    void shouldRejectNullHostInEntry() {
+    void shouldRejectNullServices() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
 
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(null);
-        hostEntry.setServices(List.of());
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
-
-        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Invalid registration");
-    }
-
-    @Test
-    void shouldRejectNullServicesInEntry() {
-        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
-
-        HostDTO hostDto = new HostDTO();
-        hostDto.setName("test-host");
-        hostDto.setMachineId("abc123");
-
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(hostDto);
-        hostEntry.setServices(null);
-
-        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
+        reg.setServices(null);
+        reg.setHosts(List.of());
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
@@ -422,11 +396,13 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectNullHostEntry() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
-        ArrayList<ServiceRegistrationHostDTO> hosts = new ArrayList<>();
+        ArrayList<HostDTO> hosts = new ArrayList<>();
         hosts.add(null);
 
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setServices(List.of());
         reg.setHosts(hosts);
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
@@ -437,20 +413,14 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectNullServiceDTOInServicesList() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
-        HostDTO hostDto = new HostDTO();
-        hostDto.setName("test-host");
-        hostDto.setMachineId("abc123");
-
-        ArrayList<ServiceDTO> services = new ArrayList<>();
+        ArrayList<ServiceRegistrationServiceDTO> services = new ArrayList<>();
         services.add(null);
 
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(hostDto);
-        hostEntry.setServices(services);
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
+        reg.setServices(services);
+        reg.setHosts(List.of());
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
@@ -460,17 +430,15 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectNullMachineId() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
         HostDTO hostDto = new HostDTO();
         hostDto.setName("test-host");
         hostDto.setMachineId(null);
 
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(hostDto);
-        hostEntry.setServices(List.of());
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto));
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
@@ -480,17 +448,15 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectBlankMachineId() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
         HostDTO hostDto = new HostDTO();
         hostDto.setName("test-host");
         hostDto.setMachineId("   ");
 
-        ServiceRegistrationHostDTO hostEntry = new ServiceRegistrationHostDTO();
-        hostEntry.setHost(hostDto);
-        hostEntry.setServices(List.of());
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry));
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto));
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
@@ -500,35 +466,44 @@ class ServiceServiceImplTest {
     @Test
     void shouldRejectDuplicateMachineIds() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
         HostDTO hostDto1 = new HostDTO();
         hostDto1.setName("host-1");
         hostDto1.setMachineId("abc123");
 
-        ServiceRegistrationHostDTO hostEntry1 = new ServiceRegistrationHostDTO();
-        hostEntry1.setHost(hostDto1);
-        hostEntry1.setServices(List.of());
-
         HostDTO hostDto2 = new HostDTO();
         hostDto2.setName("host-2");
         hostDto2.setMachineId("abc123");
 
-        ServiceRegistrationHostDTO hostEntry2 = new ServiceRegistrationHostDTO();
-        hostEntry2.setHost(hostDto2);
-        hostEntry2.setServices(List.of());
-
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
-        reg.setHosts(List.of(hostEntry1, hostEntry2));
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto1, hostDto2));
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Duplicate machineId: abc123");
     }
 
+    @Test
+    void shouldRejectDuplicateContainerIdsAcrossServices() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+
+        // Two different services trying to use the same containerId (which is invalid - Docker container IDs are globally unique)
+        ServiceRegistrationServiceDTO service1 = buildServiceWithReplica("nginx", "nginx:latest", "duplicate-container-id", "nginx-1", "abc123");
+        ServiceRegistrationServiceDTO service2 = buildServiceWithReplica("redis", "redis:7", "duplicate-container-id", "redis-1", "abc123");
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId,
+                buildRegistration(List.of(service1, service2))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Duplicate containerId across services: duplicate-container-id");
+    }
+
     private Service createService(String name, String imageName) {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());
-        svc.setHost(host);
+        svc.setEnvironment(environment);
         svc.setServiceName(name);
         svc.setImageName(imageName);
         return svc;

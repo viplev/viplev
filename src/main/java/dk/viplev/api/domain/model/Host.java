@@ -63,7 +63,4 @@ public class Host {
 
     @Column(name = "ram_type")
     private String ramType;
-
-    @OneToMany(mappedBy = "host", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Service> services = new ArrayList<>();
 }
