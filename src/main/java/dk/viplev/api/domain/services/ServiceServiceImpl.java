@@ -177,7 +177,10 @@ public class ServiceServiceImpl implements ServiceService {
                         // Update fields
                         existingReplica.setHost(host);
                         existingReplica.setContainerName(replicaDto.getContainerName());
-                        existingReplica.setStartedAt(replicaDto.getStartedAt());
+                        // Only update startedAt if provided (avoid overwriting with null)
+                        if (replicaDto.getStartedAt() != null) {
+                            existingReplica.setStartedAt(replicaDto.getStartedAt());
+                        }
                         existingReplica.setLastSeenAt(now);
                         serviceReplicaRepository.save(existingReplica);
                     } else {
@@ -252,6 +255,15 @@ public class ServiceServiceImpl implements ServiceService {
             }
             if (hostDto.getMachineId() == null || hostDto.getMachineId().isBlank()) {
                 throw new BadRequestException("Invalid registration", "machineId must not be null or blank");
+            }
+            if (hostDto.getName() == null || hostDto.getName().isBlank()) {
+                throw new BadRequestException("Invalid host: name must not be null or blank");
+            }
+            if (hostDto.getOs() == null || hostDto.getOs().isBlank()) {
+                throw new BadRequestException("Invalid host: os must not be null or blank");
+            }
+            if (hostDto.getIpAddress() == null || hostDto.getIpAddress().isBlank()) {
+                throw new BadRequestException("Invalid host: ipAddress must not be null or blank");
             }
             if (!seenMachineIds.add(hostDto.getMachineId())) {
                 throw new BadRequestException("Duplicate machineId: " + hostDto.getMachineId());

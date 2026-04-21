@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "service_replicas", uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "container_id"}))
+@Table(name = "service_replicas", uniqueConstraints = @UniqueConstraint(columnNames = {"container_id"}))
 @Getter
 @Setter
 public class ServiceReplica {

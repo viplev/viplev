@@ -471,10 +471,14 @@ class ServiceServiceImplTest {
         HostDTO hostDto1 = new HostDTO();
         hostDto1.setName("host-1");
         hostDto1.setMachineId("abc123");
+        hostDto1.setOs("Linux");
+        hostDto1.setIpAddress("192.168.1.1");
 
         HostDTO hostDto2 = new HostDTO();
         hostDto2.setName("host-2");
         hostDto2.setMachineId("abc123");
+        hostDto2.setOs("Linux");
+        hostDto2.setIpAddress("192.168.1.2");
 
         ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
         reg.setServices(List.of());
@@ -498,6 +502,66 @@ class ServiceServiceImplTest {
                 buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Duplicate containerId across services: duplicate-container-id");
+    }
+
+    @Test
+    void shouldRejectNullHostName() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setMachineId("abc123");
+        hostDto.setName(null);
+        hostDto.setOs("Linux");
+        hostDto.setIpAddress("192.168.1.1");
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid host: name must not be null or blank");
+    }
+
+    @Test
+    void shouldRejectNullHostOs() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setMachineId("abc123");
+        hostDto.setName("host-1");
+        hostDto.setOs(null);
+        hostDto.setIpAddress("192.168.1.1");
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid host: os must not be null or blank");
+    }
+
+    @Test
+    void shouldRejectNullHostIpAddress() {
+        when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+
+        HostDTO hostDto = new HostDTO();
+        hostDto.setMachineId("abc123");
+        hostDto.setName("host-1");
+        hostDto.setOs("Linux");
+        hostDto.setIpAddress(null);
+
+        ServiceRegistrationDTO reg = new ServiceRegistrationDTO();
+        reg.setServices(List.of());
+        reg.setHosts(List.of(hostDto));
+
+        assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid host: ipAddress must not be null or blank");
     }
 
     private Service createService(String name, String imageName) {

@@ -28,6 +28,9 @@ ALTER TABLE services ADD CONSTRAINT services_environment_id_service_name_key UNI
 ALTER TABLE service_replicas ADD COLUMN host_id UUID NOT NULL REFERENCES hosts(id) ON DELETE CASCADE;
 ALTER TABLE service_replicas ADD COLUMN container_name VARCHAR(255) NOT NULL;
 
+-- Drop obsolete composite uniqueness before enforcing global container_id uniqueness
+ALTER TABLE service_replicas DROP CONSTRAINT IF EXISTS service_replicas_service_id_container_id_key;
+
 -- Add global uniqueness constraint for container_id (Docker container IDs are globally unique)
 ALTER TABLE service_replicas ADD CONSTRAINT service_replicas_container_id_key UNIQUE (container_id);
 

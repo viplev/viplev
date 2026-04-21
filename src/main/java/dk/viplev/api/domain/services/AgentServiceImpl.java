@@ -406,8 +406,11 @@ public class AgentServiceImpl implements AgentService {
             if (cause instanceof ConstraintViolationException) {
                 ConstraintViolationException cve = (ConstraintViolationException) cause;
                 String constraintName = cve.getConstraintName();
-                // Only retry for unique constraint violations on service_id + container_id
-                if (constraintName != null && constraintName.contains("service_replicas_service_id_container_id_key")) {
+                // Retry for unique constraint violations on container_id (global uniqueness)
+                // or the old composite constraint (for backwards compatibility during migration)
+                if (constraintName != null && 
+                    (constraintName.contains("service_replicas_container_id_key") ||
+                     constraintName.contains("service_replicas_service_id_container_id_key"))) {
                     log.debug("Race condition detected creating replica, retrying lookup: containerId={}", replicaDto.getContainerId());
                     return serviceReplicaRepository.findByServiceIdAndContainerId(service.getId(), replicaDto.getContainerId())
                             .orElseThrow(() -> new BadRequestException("Failed to create or find replica after race condition",
