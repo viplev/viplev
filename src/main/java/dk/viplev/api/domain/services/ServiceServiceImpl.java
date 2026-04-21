@@ -18,6 +18,7 @@ import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -193,10 +194,21 @@ public class ServiceServiceImpl implements ServiceService {
                         replica.setStartedAt(replicaDto.getStartedAt());
                         replica.setCreatedAt(now);
                         replica.setLastSeenAt(now);
-                        serviceReplicaRepository.save(replica);
-                        replicasCreated++;
-                        log.debug("Created replica: containerId={}, containerName={}, replicaId={}", 
-                                replicaDto.getContainerId(), replicaDto.getContainerName(), replica.getId());
+                        
+                        try {
+                            serviceReplicaRepository.save(replica);
+                            replicasCreated++;
+                            log.debug("Created replica: containerId={}, containerName={}, replicaId={}", 
+                                    replicaDto.getContainerId(), replicaDto.getContainerName(), replica.getId());
+                        } catch (DataIntegrityViolationException e) {
+                            // Check if it's a container_id uniqueness violation
+                            if (e.getMessage() != null && e.getMessage().contains("container_id")) {
+                                throw new BadRequestException("Invalid replica", 
+                                    "Container ID already exists: " + replicaDto.getContainerId());
+                            }
+                            // Re-throw if it's a different constraint violation
+                            throw e;
+                        }
                     }
                 }
 
@@ -257,16 +269,16 @@ public class ServiceServiceImpl implements ServiceService {
                 throw new BadRequestException("Invalid registration", "machineId must not be null or blank");
             }
             if (hostDto.getName() == null || hostDto.getName().isBlank()) {
-                throw new BadRequestException("Invalid host: name must not be null or blank");
+                throw new BadRequestException("Invalid host", "name must not be null or blank");
             }
             if (hostDto.getOs() == null || hostDto.getOs().isBlank()) {
-                throw new BadRequestException("Invalid host: os must not be null or blank");
+                throw new BadRequestException("Invalid host", "os must not be null or blank");
             }
             if (hostDto.getIpAddress() == null || hostDto.getIpAddress().isBlank()) {
-                throw new BadRequestException("Invalid host: ipAddress must not be null or blank");
+                throw new BadRequestException("Invalid host", "ipAddress must not be null or blank");
             }
             if (!seenMachineIds.add(hostDto.getMachineId())) {
-                throw new BadRequestException("Duplicate machineId: " + hostDto.getMachineId());
+                throw new BadRequestException("Duplicate machineId", hostDto.getMachineId());
             }
         }
 
@@ -278,10 +290,10 @@ public class ServiceServiceImpl implements ServiceService {
                 throw new BadRequestException("Invalid registration", "services must not contain null entries");
             }
             if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
-                throw new BadRequestException("serviceName must not be null or blank");
+                throw new BadRequestException("Invalid service", "serviceName must not be null or blank");
             }
             if (!seenServiceNames.add(serviceDto.getServiceName())) {
-                throw new BadRequestException("Duplicate serviceName: " + serviceDto.getServiceName());
+                throw new BadRequestException("Duplicate serviceName", serviceDto.getServiceName());
             }
             if (serviceDto.getReplicas() == null) {
                 throw new BadRequestException("Invalid registration", "replicas must not be null for service: " + serviceDto.getServiceName());
@@ -293,20 +305,20 @@ public class ServiceServiceImpl implements ServiceService {
                     throw new BadRequestException("Invalid registration", "replicas must not contain null entries");
                 }
                 if (replicaDto.getContainerId() == null || replicaDto.getContainerId().isBlank()) {
-                    throw new BadRequestException("containerId must not be null or blank");
+                    throw new BadRequestException("Invalid replica", "containerId must not be null or blank");
                 }
                 if (replicaDto.getContainerName() == null || replicaDto.getContainerName().isBlank()) {
-                    throw new BadRequestException("containerName must not be null or blank");
+                    throw new BadRequestException("Invalid replica", "containerName must not be null or blank");
                 }
                 if (replicaDto.getMachineId() == null || replicaDto.getMachineId().isBlank()) {
-                    throw new BadRequestException("machineId must not be null or blank for replica");
+                    throw new BadRequestException("Invalid replica", "machineId must not be null or blank");
                 }
                 if (!seenMachineIds.contains(replicaDto.getMachineId())) {
-                    throw new BadRequestException("Invalid replica: machineId not found in hosts: " + replicaDto.getMachineId());
+                    throw new BadRequestException("Invalid replica", "machineId not found in hosts: " + replicaDto.getMachineId());
                 }
                 // Global containerId uniqueness check (Docker container IDs are globally unique)
                 if (!globalContainerIds.add(replicaDto.getContainerId())) {
-                    throw new BadRequestException("Duplicate containerId across services: " + replicaDto.getContainerId());
+                    throw new BadRequestException("Duplicate containerId", "Container ID already used in another service: " + replicaDto.getContainerId());
                 }
             }
         }

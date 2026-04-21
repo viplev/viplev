@@ -280,7 +280,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(service))))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("serviceName must not be null or blank");
+                .hasMessage("Invalid service");
     }
 
     @Test
@@ -293,7 +293,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Duplicate serviceName: same-name");
+                .hasMessage("Duplicate serviceName");
     }
 
     @Test
@@ -354,7 +354,7 @@ class ServiceServiceImplTest {
     }
 
     @Test
-    void shouldRejectDuplicateServiceNamesPerHost() {
+    void shouldRejectDuplicateServiceNamesPerEnvironment() {
         when(authService.getAuthenticatedEnvironmentId()).thenReturn(environmentId);
         when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
 
@@ -364,7 +364,7 @@ class ServiceServiceImplTest {
         assertThatThrownBy(() -> serviceService.registerServices(environmentId,
                 buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Duplicate serviceName: duplicate-name");
+                .hasMessage("Duplicate serviceName");
     }
 
     @Test
@@ -486,7 +486,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Duplicate machineId: abc123");
+                .hasMessage("Duplicate machineId");
     }
 
     @Test
@@ -501,7 +501,7 @@ class ServiceServiceImplTest {
         assertThatThrownBy(() -> serviceService.registerServices(environmentId,
                 buildRegistration(List.of(service1, service2))))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Duplicate containerId across services: duplicate-container-id");
+                .hasMessage("Duplicate containerId");
     }
 
     @Test
@@ -521,7 +521,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Invalid host: name must not be null or blank");
+                .hasMessage("Invalid host");
     }
 
     @Test
@@ -541,7 +541,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Invalid host: os must not be null or blank");
+                .hasMessage("Invalid host");
     }
 
     @Test
@@ -561,7 +561,7 @@ class ServiceServiceImplTest {
 
         assertThatThrownBy(() -> serviceService.registerServices(environmentId, reg))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Invalid host: ipAddress must not be null or blank");
+                .hasMessage("Invalid host");
     }
 
     private Service createService(String name, String imageName) {

@@ -24,7 +24,9 @@ ALTER TABLE services DROP COLUMN host_id;
 ALTER TABLE services ADD COLUMN environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE;
 ALTER TABLE services ADD CONSTRAINT services_environment_id_service_name_key UNIQUE (environment_id, service_name);
 
--- Add host_id and container_name to service_replicas
+-- Add new columns to service_replicas
+-- host_id: NEW - references the host where this replica is running
+-- container_name: NEW - for debugging/display purposes (container_id already existed)
 ALTER TABLE service_replicas ADD COLUMN host_id UUID NOT NULL REFERENCES hosts(id) ON DELETE CASCADE;
 ALTER TABLE service_replicas ADD COLUMN container_name VARCHAR(255) NOT NULL;
 
