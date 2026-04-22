@@ -1225,23 +1225,23 @@ components:
           type: number
           format: double
         memoryUsageBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
         memoryLimitBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
         networkInBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
         networkOutBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
         blockInBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
         blockOutBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
 
     RawK6TimeSeriesDTO:
       type: object
@@ -1614,28 +1614,28 @@ components:
           format: double
           description: CPU usage percentage
         memoryUsageBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Memory usage in bytes
         memoryLimitBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Memory limit in bytes
         networkInBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Network bytes received
         networkOutBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Network bytes sent
         blockInBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Block I/O bytes read
         blockOutBytes:
-          type: number
-          format: double
+          type: integer
+          format: int64
           description: Block I/O bytes written
 
     MetricResourceNodeDTO:

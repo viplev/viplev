@@ -106,15 +106,15 @@ class BenchmarkRunRawIT {
 
         // Seed host metrics
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
-                run, host, baseTime, 40.0, 1000.0, 2000.0, 100.0, 50.0, 20.0, 10.0));
+                run, host, baseTime, 40.0, 1000L, 2000L, 100L, 50L, 20L, 10L));
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
-                run, host, baseTime.plusSeconds(5), 60.0, 1500.0, 2000.0, 200.0, 100.0, 30.0, 15.0));
+                run, host, baseTime.plusSeconds(5), 60.0, 1500L, 2000L, 200L, 100L, 30L, 15L));
 
         // Seed replica metrics
         metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
-                run, replica, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
+                run, replica, baseTime, 20.0, 500L, 1000L, 50L, 25L, 10L, 5L));
         metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
-                run, replica, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
+                run, replica, baseTime.plusSeconds(5), 30.0, 700L, 1000L, 80L, 40L, 15L, 8L));
 
         // Seed K6 HTTP metrics
         metricK6HttpRepository.saveAndFlush(new MetricK6Http(
@@ -135,12 +135,12 @@ class BenchmarkRunRawIT {
                 .andExpect(jsonPath("$.timeSeries.hosts[0].hostName").value(host.getName()))
                 .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints.length()").value(2))
                 .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].cpuPercentage").value(40.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].memoryUsageBytes").value(1000.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].memoryLimitBytes").value(2000.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].networkInBytes").value(100.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].networkOutBytes").value(50.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].blockInBytes").value(20.0))
-                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].blockOutBytes").value(10.0))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].memoryUsageBytes").value(1000))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].memoryLimitBytes").value(2000))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].networkInBytes").value(100))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].networkOutBytes").value(50))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].blockInBytes").value(20))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[0].blockOutBytes").value(10))
                 .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints[1].cpuPercentage").value(60.0))
                 // Service data nested under host
                 .andExpect(jsonPath("$.timeSeries.hosts[0].services.length()").value(1))
