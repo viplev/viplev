@@ -419,6 +419,44 @@ paths:
         '500':
           $ref: '#/components/responses/500InternalServerError'
 
+  /v1/environments/{environmentId}/benchmarks/{benchmarkId}/services:
+    patch:
+      tags:
+        - Benchmark
+      operationId: updateBenchmarkServices
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: benchmarkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenchmarkServicesPatchDTO'
+      responses:
+        '204':
+          description: Services updated successfully
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          $ref: '#/components/responses/409Conflict'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+
 
   /v1/environments/{environmentId}/runs:
     parameters:
@@ -1045,6 +1083,24 @@ components:
           format: date-time
           readOnly: true
           description: Timestamp when benchmark was last updated
+        serviceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+
+    BenchmarkServicesPatchDTO:
+      type: object
+      required:
+        - serviceIds
+      properties:
+        serviceIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
 
     PaginationDTO:
       type: object

@@ -71,6 +71,7 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
     private final MetricK6VusRepository metricK6VusRepository;
     private final MetricResourceHostRepository metricResourceHostRepository;
     private final MetricResourceReplicaRepository metricResourceReplicaRepository;
+    private final BenchmarkServiceScopeService benchmarkServiceScopeService;
 
     @Override
     public List<BenchmarkRunDTO> listBenchmarkRuns(UUID environmentId, UUID benchmarkId) {
@@ -158,12 +159,14 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
         List<MetricResourceHost> hostMetrics = metricResourceHostRepository.findByBenchmarkRunId(runId);
         List<MetricResourceReplica> replicaMetrics = metricResourceReplicaRepository.findByBenchmarkRunId(runId);
+        Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
+        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(replicaMetrics, scopedServiceIds);
 
         BenchmarkRunDerivedDTO result = new BenchmarkRunDerivedDTO();
         result.setRun(benchmarkRunMapper.toDto(run));
         result.setHttp(buildHttpSummaries(httpMetrics, percentileValues, percentiles));
         result.setVus(buildVusSummary(vusMetrics));
-        result.setHosts(buildHostSummaries(hostMetrics, replicaMetrics, percentileValues, percentiles));
+        result.setHosts(buildHostSummaries(hostMetrics, filteredReplicaMetrics, percentileValues, percentiles));
 
         return result;
     }
@@ -190,9 +193,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<MetricResourceReplica> replicaMetrics = metricResourceReplicaRepository.findByBenchmarkRunId(runId);
         List<MetricK6Http> httpMetrics = metricK6HttpRepository.findByBenchmarkRunId(runId);
         List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
+        Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
+        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(replicaMetrics, scopedServiceIds);
 
         RawTimeSeriesDTO timeSeries = new RawTimeSeriesDTO();
-        timeSeries.setHosts(buildRawHosts(hostMetrics, replicaMetrics));
+        timeSeries.setHosts(buildRawHosts(hostMetrics, filteredReplicaMetrics));
         timeSeries.setK6(buildRawK6(httpMetrics, vusMetrics));
 
         BenchmarkRunRawDTO result = new BenchmarkRunRawDTO();
@@ -700,6 +705,16 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         int index = (int) Math.ceil(percentile / 100.0 * sortedValues.size()) - 1;
         index = Math.max(0, Math.min(index, sortedValues.size() - 1));
         return sortedValues.get(index);
+    }
+
+    private List<MetricResourceReplica> filterReplicaMetricsByScopedServices(List<MetricResourceReplica> replicaMetrics,
+                                                                              Set<UUID> scopedServiceIds) {
+        if (scopedServiceIds.isEmpty()) {
+            return List.of();
+        }
+        return replicaMetrics.stream()
+                .filter(metric -> scopedServiceIds.contains(metric.getReplica().getService().getId()))
+                .toList();
     }
 
     private Environment findEnvironmentByOwner(UUID environmentId) {

@@ -78,6 +78,7 @@ public class AgentServiceImpl implements AgentService {
     private final BenchmarkMapper benchmarkMapper;
     private final BenchmarkRunMapper benchmarkRunMapper;
     private final MessageMapper messageMapper;
+    private final BenchmarkServiceScopeService benchmarkServiceScopeService;
 
     @Override
     @Transactional
@@ -191,6 +192,8 @@ public class AgentServiceImpl implements AgentService {
             throw new BadRequestException("Invalid resource metrics", "hosts must not be null");
         }
 
+        Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
+
         int totalHostMetricDataPoints = 0;
         int totalReplicaMetricDataPoints = 0;
 
@@ -236,9 +239,6 @@ public class AgentServiceImpl implements AgentService {
                     if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
                         throw new BadRequestException("Invalid resource metrics", "serviceName must not be null or blank");
                     }
-                    if (serviceDto.getReplicas() == null) {
-                        throw new BadRequestException("Invalid resource metrics", "replicas must not be null for service " + serviceDto.getServiceName());
-                    }
                 }
 
                 Set<String> serviceNames = node.getServices().stream()
@@ -263,6 +263,12 @@ public class AgentServiceImpl implements AgentService {
                 
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     Service service = servicesByName.get(serviceDto.getServiceName());
+
+                    if (!scopedServiceIds.contains(service.getId())) {
+                        log.warn("Skipping non-scoped service metrics: environmentId={}, benchmarkId={}, runId={}, serviceId={}, serviceName={}, machineId={}",
+                                environmentId, benchmarkId, runId, service.getId(), service.getServiceName(), machineId);
+                        continue;
+                    }
 
                     // Validate replicas array is not empty
                     if (serviceDto.getReplicas() == null || serviceDto.getReplicas().isEmpty()) {

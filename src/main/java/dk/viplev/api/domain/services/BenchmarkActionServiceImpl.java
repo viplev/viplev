@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,7 +50,7 @@ public class BenchmarkActionServiceImpl implements BenchmarkActionService {
         findEnvironmentByOwner(environmentId);
         Benchmark benchmark = findBenchmarkByEnvironment(benchmarkId, environmentId);
 
-        boolean hasActiveRun = benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(benchmarkId, ACTIVE_STATUSES);
+        boolean hasActiveRun = benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(benchmarkId, List.copyOf(ACTIVE_STATUSES));
         if (hasActiveRun) {
             throw new ConflictException("Benchmark already has an active run",
                     "Benchmark " + benchmarkId + " already has an active run");

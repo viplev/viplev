@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -36,6 +37,21 @@ public class RestErrorHandler {
 			.type(BAD_REQUEST_TYPE_URI)
 			.title(ex.getMessage())
 			.detail(ex.getDescription())
+			.instance(URI.create(request.getRequestURI()));
+
+		return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ErrorDTO> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+			HttpServletRequest request) {
+		log.info("HTTP ERROR - 400 Bad Request: {}", ex.getMessage());
+
+		ErrorDTO error = new ErrorDTO()
+			.status(400)
+			.type(BAD_REQUEST_TYPE_URI)
+			.title("Bad Request")
+			.detail("Request body is invalid or missing")
 			.instance(URI.create(request.getRequestURI()));
 
 		return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);

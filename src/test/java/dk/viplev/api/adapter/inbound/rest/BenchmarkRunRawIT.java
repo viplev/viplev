@@ -20,6 +20,7 @@ import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+import dk.viplev.api.port.outbound.db.BenchmarkServiceRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricK6HttpRepository;
 import dk.viplev.api.port.outbound.db.MetricK6VusRepository;
@@ -58,6 +59,7 @@ class BenchmarkRunRawIT {
     @Autowired private MetricK6VusRepository metricK6VusRepository;
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
     @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
+    @Autowired private BenchmarkServiceRepository benchmarkServiceRepository;
 
     private String user1Token;
     private String user2Token;
@@ -85,6 +87,7 @@ class BenchmarkRunRawIT {
 
         List<Service> services = serviceRepository.findByEnvironmentId(UUID.fromString(environmentId));
         service = services.get(0);
+        benchmarkServiceRepository.insertBenchmarkService(UUID.fromString(benchmarkId), service.getId());
         
         // Create a replica for the service
         // Use unique container ID to avoid conflicts across tests (global uniqueness constraint)
@@ -197,6 +200,39 @@ class BenchmarkRunRawIT {
 
         mockMvc.perform(get(rawUrl(environmentId, benchmarkId, run.getId().toString())))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturnOnlyScopedServiceMetricsAndKeepHostAndK6() throws Exception {
+        BenchmarkRun run = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk");
+        LocalDateTime t = LocalDateTime.of(2025, 1, 15, 11, 0, 0);
+
+        Service unscopedService = new Service();
+        unscopedService.setEnvironment(service.getEnvironment());
+        unscopedService.setServiceName("raw-unscoped-" + UUID.randomUUID());
+        unscopedService = serviceRepository.saveAndFlush(unscopedService);
+        ServiceReplica unscopedReplica = new ServiceReplica();
+        unscopedReplica.setService(unscopedService);
+        unscopedReplica.setHost(host);
+        unscopedReplica.setContainerId("raw-unscoped-container-" + UUID.randomUUID());
+        unscopedReplica.setContainerName("raw-unscoped-container");
+        unscopedReplica.setStartedAt(LocalDateTime.now());
+        unscopedReplica.setLastSeenAt(LocalDateTime.now());
+        unscopedReplica = serviceReplicaRepository.saveAndFlush(unscopedReplica);
+
+        metricResourceHostRepository.saveAndFlush(new MetricResourceHost(run, host, t, 10.0, 1L, 2L, 3L, 4L, 5L, 6L));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(run, replica, t, 20.0, 10L, 20L, 30L, 40L, 50L, 60L));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(run, unscopedReplica, t, 99.0, 10L, 20L, 30L, 40L, 50L, 60L));
+        metricK6HttpRepository.saveAndFlush(new MetricK6Http(run, t, "http://test", "GET", "g", 200, 200, 1, 1, 11, 7));
+
+        mockMvc.perform(get(rawUrl(environmentId, benchmarkId, run.getId().toString()))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timeSeries.hosts.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].dataPoints.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].serviceId").value(service.getId().toString()))
+                .andExpect(jsonPath("$.timeSeries.k6.dataPoints.length()").value(1));
     }
 
     // --- Helpers ---
