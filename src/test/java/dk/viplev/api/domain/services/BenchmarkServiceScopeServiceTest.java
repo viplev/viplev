@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -120,12 +121,12 @@ class BenchmarkServiceScopeServiceTest {
 
         Benchmark benchmark = benchmark(envId);
         when(benchmarkRepository.findById(benchmarkId)).thenReturn(Optional.of(benchmark));
-        when(serviceRepository.findAllById(List.of(serviceId))).thenReturn(List.of(activeService(serviceId, envId)));
         when(benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(any(), any())).thenReturn(true);
 
         assertThatThrownBy(() -> service.updateBenchmarkServices(benchmarkId, List.of(serviceId)))
                 .isInstanceOf(ConflictException.class);
 
+        verifyNoInteractions(serviceRepository);
         verify(benchmarkServiceRepository, never()).softDeleteBenchmarkService(any(), any());
         verify(benchmarkServiceRepository, never()).insertBenchmarkService(any(), any());
 
@@ -133,6 +134,24 @@ class BenchmarkServiceScopeServiceTest {
         verify(benchmarkRunRepository).existsByBenchmarkIdAndStatusIn(org.mockito.ArgumentMatchers.eq(benchmarkId), statusesCaptor.capture());
         assertThat(statusesCaptor.getValue())
                 .containsExactlyInAnyOrder(BenchmarkRunStatus.PENDING_START, BenchmarkRunStatus.STARTED, BenchmarkRunStatus.PENDING_STOP);
+    }
+
+    @Test
+    void shouldPrioritizeConflictOverInvalidServicesWhenRunIsActive() {
+        UUID benchmarkId = UUID.randomUUID();
+        UUID envId = UUID.randomUUID();
+        UUID invalidServiceId = UUID.randomUUID();
+
+        Benchmark benchmark = benchmark(envId);
+        when(benchmarkRepository.findById(benchmarkId)).thenReturn(Optional.of(benchmark));
+        when(benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(any(), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateBenchmarkServices(benchmarkId, List.of(invalidServiceId)))
+                .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(serviceRepository);
+        verify(benchmarkServiceRepository, never()).softDeleteBenchmarkService(any(), any());
+        verify(benchmarkServiceRepository, never()).insertBenchmarkService(any(), any());
     }
 
     private Benchmark benchmark(UUID environmentId) {

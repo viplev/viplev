@@ -356,6 +356,43 @@ class BenchmarkApiDelegateImplIT {
     }
 
     @Test
+    void shouldReturn409EvenWhenServiceIdsAreInvalidIfRunIsActive() throws Exception {
+        MvcResult createResult = mockMvc.perform(post(benchmarkUrl(user1EnvironmentId))
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(benchmarkJson("Conflict Priority Benchmark", "desc", "script")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String benchmarkId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText();
+        testObjectFactory.createBenchmarkRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
+
+        String invalidBody = objectMapper.writeValueAsString(Map.of("serviceIds", List.of(UUID.randomUUID())));
+        mockMvc.perform(patch(benchmarkUrl(user1EnvironmentId, benchmarkId) + "/services")
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldReturn400WhenPatchRequestBodyIsMissing() throws Exception {
+        MvcResult createResult = mockMvc.perform(post(benchmarkUrl(user1EnvironmentId))
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(benchmarkJson("Missing ServiceIds Benchmark", "desc", "script")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String benchmarkId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText();
+
+        mockMvc.perform(patch(benchmarkUrl(user1EnvironmentId, benchmarkId) + "/services")
+                        .header("Authorization", "Bearer " + user1Token)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldCreateNewRowWhenReAddingPreviouslyRemovedService() throws Exception {
         MvcResult createResult = mockMvc.perform(post(benchmarkUrl(user1EnvironmentId))
                         .header("Authorization", "Bearer " + user1Token)

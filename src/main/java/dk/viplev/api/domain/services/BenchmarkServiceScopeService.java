@@ -47,12 +47,12 @@ public class BenchmarkServiceScopeService {
         Benchmark benchmark = benchmarkRepository.findById(benchmarkId)
                 .orElseThrow(() -> new NotFoundException("Benchmark not found"));
 
-        validateAllServicesExistAndAreActiveInEnvironment(benchmark, serviceIds);
-
         if (hasActiveOrPendingRun(benchmarkId)) {
             throw new ConflictException("Benchmark has active or pending run",
                     "Cannot update scoped services while benchmark run is pending or active");
         }
+
+        validateAllServicesExistAndAreActiveInEnvironment(benchmark, serviceIds);
 
         Set<UUID> requested = new HashSet<>(serviceIds);
         Set<UUID> current = new HashSet<>(getActiveScopedServiceIds(benchmarkId));
