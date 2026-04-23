@@ -459,6 +459,13 @@ class AgentServiceImplTest {
                 .thenReturn(Optional.of(host));
         when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
 
+        Service svc = new Service();
+        svc.setId(UUID.randomUUID());
+        svc.setServiceName("my-service");
+        when(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId)).thenReturn(List.of(svc.getId()));
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
+                .thenReturn(List.of(svc));
+
         MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
         serviceDto.setServiceName("my-service");
         serviceDto.setReplicas(null);

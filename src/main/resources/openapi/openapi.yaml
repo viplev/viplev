@@ -447,11 +447,15 @@ paths:
         '204':
           description: Services updated successfully
         '400':
-          description: Bad request (duplicate IDs, invalid services)
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
         '404':
-          description: Benchmark or environment not found
+          $ref: '#/components/responses/404NotFound'
         '409':
-          description: Benchmark has active/pending run
+          $ref: '#/components/responses/409Conflict'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
 
 
   /v1/environments/{environmentId}/runs:
@@ -1093,6 +1097,7 @@ components:
       properties:
         serviceIds:
           type: array
+          uniqueItems: true
           items:
             type: string
             format: uuid

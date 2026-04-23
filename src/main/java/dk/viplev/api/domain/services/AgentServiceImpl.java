@@ -239,9 +239,6 @@ public class AgentServiceImpl implements AgentService {
                     if (serviceDto.getServiceName() == null || serviceDto.getServiceName().isBlank()) {
                         throw new BadRequestException("Invalid resource metrics", "serviceName must not be null or blank");
                     }
-                    if (serviceDto.getReplicas() == null) {
-                        throw new BadRequestException("Invalid resource metrics", "replicas must not be null for service " + serviceDto.getServiceName());
-                    }
                 }
 
                 Set<String> serviceNames = node.getServices().stream()

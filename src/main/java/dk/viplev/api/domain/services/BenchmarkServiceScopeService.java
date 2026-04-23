@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,12 +38,14 @@ public class BenchmarkServiceScopeService {
     private final ServiceRepository serviceRepository;
 
     @Transactional
-    public void updateBenchmarkServices(UUID benchmarkId, List<UUID> serviceIds) {
+    public void updateBenchmarkServices(UUID benchmarkId, Collection<UUID> serviceIds) {
         if (serviceIds == null) {
             throw new BadRequestException("Invalid service scope", "serviceIds must not be null");
         }
 
-        validateNoDuplicates(serviceIds);
+        List<UUID> serviceIdList = List.copyOf(serviceIds);
+
+        validateNoDuplicates(serviceIdList);
 
         Benchmark benchmark = benchmarkRepository.findById(benchmarkId)
                 .orElseThrow(() -> new NotFoundException("Benchmark not found"));
@@ -52,9 +55,9 @@ public class BenchmarkServiceScopeService {
                     "Cannot update scoped services while benchmark run is pending or active");
         }
 
-        validateAllServicesExistAndAreActiveInEnvironment(benchmark, serviceIds);
+        validateAllServicesExistAndAreActiveInEnvironment(benchmark, serviceIdList);
 
-        Set<UUID> requested = new HashSet<>(serviceIds);
+        Set<UUID> requested = new HashSet<>(serviceIdList);
         Set<UUID> current = new HashSet<>(getActiveScopedServiceIds(benchmarkId));
 
         Set<UUID> toRemove = new HashSet<>(current);
