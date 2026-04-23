@@ -101,8 +101,8 @@ class AgentServiceImplTest {
         MetricDataPointDTO dp = new MetricDataPointDTO();
         dp.setCollectedAt(LocalDateTime.now());
         dp.setCpuPercentage(10.0);
-        dp.setMemoryUsageBytes(512.0);
-        dp.setMemoryLimitBytes(1024.0);
+        dp.setMemoryUsageBytes(512L);
+        dp.setMemoryLimitBytes(1024L);
         return dp;
     }
 

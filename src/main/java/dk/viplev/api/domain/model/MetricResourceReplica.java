@@ -38,22 +38,22 @@ public class MetricResourceReplica {
     private Double cpuPercentage;
 
     @Column(name = "memory_usage_bytes")
-    private Double memoryUsageBytes;
+    private Long memoryUsageBytes;
 
     @Column(name = "memory_limit_bytes")
-    private Double memoryLimitBytes;
+    private Long memoryLimitBytes;
 
     @Column(name = "network_in_bytes")
-    private Double networkInBytes;
+    private Long networkInBytes;
 
     @Column(name = "network_out_bytes")
-    private Double networkOutBytes;
+    private Long networkOutBytes;
 
     @Column(name = "block_in_bytes")
-    private Double blockInBytes;
+    private Long blockInBytes;
 
     @Column(name = "block_out_bytes")
-    private Double blockOutBytes;
+    private Long blockOutBytes;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -62,9 +62,9 @@ public class MetricResourceReplica {
     protected MetricResourceReplica() {}
 
     public MetricResourceReplica(BenchmarkRun benchmarkRun, ServiceReplica replica, LocalDateTime collectedAt,
-                                 Double cpuPercentage, Double memoryUsageBytes, Double memoryLimitBytes,
-                                 Double networkInBytes, Double networkOutBytes,
-                                 Double blockInBytes, Double blockOutBytes) {
+                                 Double cpuPercentage, Long memoryUsageBytes, Long memoryLimitBytes,
+                                 Long networkInBytes, Long networkOutBytes,
+                                 Long blockInBytes, Long blockOutBytes) {
         this.benchmarkRun = benchmarkRun;
         this.replica = replica;
         this.collectedAt = collectedAt;

@@ -547,24 +547,24 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         List<Double> memoryValues = metrics.stream()
                 .filter(m -> m.getMemoryUsageBytes() != null)
-                .map(MetricResourceHost::getMemoryUsageBytes)
+                .map(m -> m.getMemoryUsageBytes().doubleValue())
                 .collect(Collectors.toList());
 
         long networkIn = metrics.stream()
                 .filter(m -> m.getNetworkInBytes() != null)
-                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
+                .mapToLong(MetricResourceHost::getNetworkInBytes)
                 .sum();
         long networkOut = metrics.stream()
                 .filter(m -> m.getNetworkOutBytes() != null)
-                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
+                .mapToLong(MetricResourceHost::getNetworkOutBytes)
                 .sum();
         long blockIn = metrics.stream()
                 .filter(m -> m.getBlockInBytes() != null)
-                .mapToLong(m -> Math.round(m.getBlockInBytes()))
+                .mapToLong(MetricResourceHost::getBlockInBytes)
                 .sum();
         long blockOut = metrics.stream()
                 .filter(m -> m.getBlockOutBytes() != null)
-                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
+                .mapToLong(MetricResourceHost::getBlockOutBytes)
                 .sum();
 
         DerivedResourceSummaryDTO summary = new DerivedResourceSummaryDTO();
@@ -588,27 +588,27 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
 
         List<Double> memoryValues = replicaMetrics.stream()
                 .filter(m -> m.getMemoryUsageBytes() != null)
-                .map(MetricResourceReplica::getMemoryUsageBytes)
+                .map(m -> m.getMemoryUsageBytes().doubleValue())
                 .toList();
 
         long networkIn = replicaMetrics.stream()
                 .filter(m -> m.getNetworkInBytes() != null)
-                .mapToLong(m -> Math.round(m.getNetworkInBytes()))
+                .mapToLong(MetricResourceReplica::getNetworkInBytes)
                 .sum();
 
         long networkOut = replicaMetrics.stream()
                 .filter(m -> m.getNetworkOutBytes() != null)
-                .mapToLong(m -> Math.round(m.getNetworkOutBytes()))
+                .mapToLong(MetricResourceReplica::getNetworkOutBytes)
                 .sum();
 
         long blockIn = replicaMetrics.stream()
                 .filter(m -> m.getBlockInBytes() != null)
-                .mapToLong(m -> Math.round(m.getBlockInBytes()))
+                .mapToLong(MetricResourceReplica::getBlockInBytes)
                 .sum();
 
         long blockOut = replicaMetrics.stream()
                 .filter(m -> m.getBlockOutBytes() != null)
-                .mapToLong(m -> Math.round(m.getBlockOutBytes()))
+                .mapToLong(MetricResourceReplica::getBlockOutBytes)
                 .sum();
 
         DerivedResourceSummaryDTO summary = new DerivedResourceSummaryDTO();

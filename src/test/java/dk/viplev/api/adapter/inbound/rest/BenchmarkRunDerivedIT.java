@@ -118,15 +118,15 @@ class BenchmarkRunDerivedIT {
 
         // Seed 2 host resource metrics
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
-                run, host, baseTime, 40.0, 1000.0, 2000.0, 100.0, 50.0, 20.0, 10.0));
+                run, host, baseTime, 40.0, 1000L, 2000L, 100L, 50L, 20L, 10L));
         metricResourceHostRepository.saveAndFlush(new MetricResourceHost(
-                run, host, baseTime.plusSeconds(5), 60.0, 1500.0, 2000.0, 200.0, 100.0, 30.0, 15.0));
+                run, host, baseTime.plusSeconds(5), 60.0, 1500L, 2000L, 200L, 100L, 30L, 15L));
 
         // Seed 2 replica resource metrics
         metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
-                run, replica, baseTime, 20.0, 500.0, 1000.0, 50.0, 25.0, 10.0, 5.0));
+                run, replica, baseTime, 20.0, 500L, 1000L, 50L, 25L, 10L, 5L));
         metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(
-                run, replica, baseTime.plusSeconds(5), 30.0, 700.0, 1000.0, 80.0, 40.0, 15.0, 8.0));
+                run, replica, baseTime.plusSeconds(5), 30.0, 700L, 1000L, 80L, 40L, 15L, 8L));
 
         mockMvc.perform(get(runUrl(environmentId, benchmarkId, run.getId().toString()))
                         .header("Authorization", "Bearer " + user1Token))

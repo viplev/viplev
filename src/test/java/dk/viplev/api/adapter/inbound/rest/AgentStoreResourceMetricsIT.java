@@ -209,12 +209,12 @@ class AgentStoreResourceMetricsIT {
                 "metrics", List.of(Map.of(
                         "collectedAt", "2025-01-15T10:00:00",
                         "cpuPercentage", 45.5,
-                        "memoryUsageBytes", 1073741824.0,
-                        "memoryLimitBytes", 2147483648.0,
-                        "networkInBytes", 500000.0,
-                        "networkOutBytes", 250000.0,
-                        "blockInBytes", 100000.0,
-                        "blockOutBytes", 50000.0
+                        "memoryUsageBytes", 1073741824,
+                        "memoryLimitBytes", 2147483648L,
+                        "networkInBytes", 500000,
+                        "networkOutBytes", 250000,
+                        "blockInBytes", 100000,
+                        "blockOutBytes", 50000
                 ))
         );
     }
@@ -227,12 +227,12 @@ class AgentStoreResourceMetricsIT {
                         "metrics", List.of(Map.of(
                                 "collectedAt", "2025-01-15T10:00:00",
                                 "cpuPercentage", 30.2,
-                                "memoryUsageBytes", 536870912.0,
-                                "memoryLimitBytes", 1073741824.0,
-                                "networkInBytes", 200000.0,
-                                "networkOutBytes", 100000.0,
-                                "blockInBytes", 50000.0,
-                                "blockOutBytes", 25000.0
+                                "memoryUsageBytes", 536870912,
+                                "memoryLimitBytes", 1073741824,
+                                "networkInBytes", 200000,
+                                "networkOutBytes", 100000,
+                                "blockInBytes", 50000,
+                                "blockOutBytes", 25000
                         ))
                 ))
         );

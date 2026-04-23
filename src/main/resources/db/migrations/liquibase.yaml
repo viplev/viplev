@@ -182,3 +182,10 @@ databaseChangeLog:
         - sqlFile:
             path: changes/025-refactor-topology-to-environment-service-replica.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 26
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/026-convert-byte-metrics-to-bigint.sql
+            relativeToChangelogFile: true
