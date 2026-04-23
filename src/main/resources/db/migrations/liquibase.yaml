@@ -189,3 +189,21 @@ databaseChangeLog:
         - sqlFile:
             path: changes/026-convert-byte-metrics-to-bigint.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 27
+      author: viplev
+      changes:
+        - sqlFile:
+            path: changes/027-add-benchmark-services-unique-index.sql
+            relativeToChangelogFile: true
+  - changeSet:
+      id: 28
+      author: viplev
+      preconditions:
+        onFail: MARK_RAN
+        dbms:
+          type: postgresql
+      changes:
+        - sqlFile:
+            path: changes/028-add-benchmark-services-partial-unique-index.sql
+            relativeToChangelogFile: true

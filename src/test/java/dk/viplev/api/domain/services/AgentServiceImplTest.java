@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import dk.viplev.api.adapter.inbound.rest.dto.MetricDataPointDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.MetricResourceDTO;
@@ -64,6 +65,7 @@ class AgentServiceImplTest {
     @Mock private BenchmarkMapper benchmarkMapper;
     @Mock private BenchmarkRunMapper benchmarkRunMapper;
     @Mock private MessageMapper messageMapper;
+    @Mock private BenchmarkServiceScopeService benchmarkServiceScopeService;
 
     private AgentServiceImpl agentService;
 
@@ -82,7 +84,9 @@ class AgentServiceImplTest {
                 metricResourceReplicaRepository,
                 metricK6HttpRepository, metricK6VusRepository,
                 environmentRepository,
-                authService, benchmarkMapper, benchmarkRunMapper, messageMapper);
+                authService, benchmarkMapper, benchmarkRunMapper, messageMapper, benchmarkServiceScopeService);
+
+        lenient().when(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId)).thenReturn(List.of());
 
         activeRun = new BenchmarkRun();
         activeRun.setId(runId);
@@ -171,6 +175,7 @@ class AgentServiceImplTest {
         Service svc = new Service();
         svc.setId(UUID.randomUUID());
         svc.setServiceName("my-service");
+        when(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId)).thenReturn(List.of(svc.getId()));
         when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
                 .thenReturn(List.of(svc));
         
@@ -504,6 +509,7 @@ class AgentServiceImplTest {
         dk.viplev.api.domain.model.Service svc = new dk.viplev.api.domain.model.Service();
         svc.setId(UUID.randomUUID());
         svc.setServiceName("my-service");
+        when(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId)).thenReturn(List.of(svc.getId()));
         when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
                 .thenReturn(List.of(svc));
 

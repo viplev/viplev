@@ -14,6 +14,7 @@ import dk.viplev.api.domain.model.Service;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.outbound.db.BenchmarkRepository;
 import dk.viplev.api.port.outbound.db.BenchmarkRunRepository;
+import dk.viplev.api.port.outbound.db.BenchmarkServiceRepository;
 import dk.viplev.api.port.outbound.db.HostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceHostRepository;
 import dk.viplev.api.port.outbound.db.MetricResourceReplicaRepository;
@@ -51,6 +52,7 @@ class AgentStoreResourceMetricsIT {
     @Autowired private MetricResourceHostRepository metricResourceHostRepository;
     
     @Autowired private MetricResourceReplicaRepository metricResourceReplicaRepository;
+    @Autowired private BenchmarkServiceRepository benchmarkServiceRepository;
 
     private String environmentId;
     private String environmentToken;
@@ -75,6 +77,7 @@ class AgentStoreResourceMetricsIT {
 
         List<Service> services = serviceRepository.findByEnvironmentId(UUID.fromString(environmentId));
         serviceName = services.get(0).getServiceName();
+        benchmarkServiceRepository.insertBenchmarkService(UUID.fromString(benchmarkId), services.get(0).getId());
     }
 
     @Test
@@ -186,6 +189,58 @@ class AgentStoreResourceMetricsIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(metricsBody(hostMetric(machineId), null)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldIgnoreNonScopedServiceMetricsAndPersistOnlyScoped() throws Exception {
+        UUID runId = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk", BenchmarkRunStatus.STARTED);
+
+        String secondServiceName = "metrics-unscoped-" + UUID.randomUUID();
+        String payload = objectMapper.writeValueAsString(Map.of(
+                "services", List.of(
+                        Map.of(
+                                "serviceName", serviceName,
+                                "imageName", "nginx:latest",
+                                "replicas", List.of(Map.of(
+                                        "containerId", "container-" + UUID.randomUUID(),
+                                        "containerName", serviceName + "-1",
+                                        "machineId", machineId
+                                ))
+                        ),
+                        Map.of(
+                                "serviceName", secondServiceName,
+                                "imageName", "nginx:latest",
+                                "replicas", List.of(Map.of(
+                                        "containerId", "container-" + UUID.randomUUID(),
+                                        "containerName", secondServiceName + "-1",
+                                        "machineId", machineId
+                                ))
+                        )
+                ),
+                "hosts", List.of(Map.of(
+                        "name", "metrics-test-host-2",
+                        "machineId", machineId,
+                        "os", "Linux",
+                        "ipAddress", "192.168.1.101"
+                ))
+        ));
+        mockMvc.perform(post("/v1/environments/" + environmentId + "/services")
+                        .header("Authorization", "Bearer " + environmentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated());
+
+        long before = metricResourceReplicaRepository.count();
+        mockMvc.perform(post(metricsUrl(environmentId, benchmarkId, runId.toString()))
+                        .header("Authorization", "Bearer " + environmentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(metricsBody(hostMetric(machineId), List.of(
+                                serviceMetric(serviceName),
+                                serviceMetric(secondServiceName)
+                        ))))
+                .andExpect(status().isCreated());
+
+        assertThat(metricResourceReplicaRepository.count()).isEqualTo(before + 1);
     }
 
     // --- Helpers ---

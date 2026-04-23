@@ -1,6 +1,8 @@
 package dk.viplev.api.adapter.inbound.rest;
 
 import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkDTO;
+import dk.viplev.api.adapter.inbound.rest.dto.BenchmarkServicesPatchDTO;
+import dk.viplev.api.domain.services.BenchmarkServiceScopeService;
 import dk.viplev.api.port.inbound.BenchmarkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,7 @@ import java.util.UUID;
 public class BenchmarkApiDelegateImpl implements BenchmarkApiDelegate {
 
     private final BenchmarkService benchmarkService;
+    private final BenchmarkServiceScopeService benchmarkServiceScopeService;
 
     @Override
     public ResponseEntity<List<BenchmarkDTO>> listBenchmarks(UUID environmentId) {
@@ -31,7 +34,9 @@ public class BenchmarkApiDelegateImpl implements BenchmarkApiDelegate {
 
     @Override
     public ResponseEntity<BenchmarkDTO> getBenchmark(UUID benchmarkId, UUID environmentId) {
-        return ResponseEntity.ok(benchmarkService.getBenchmark(environmentId, benchmarkId));
+        BenchmarkDTO benchmark = benchmarkService.getBenchmark(environmentId, benchmarkId);
+        benchmark.setServiceIds(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
+        return ResponseEntity.ok(benchmark);
     }
 
     @Override
@@ -42,6 +47,13 @@ public class BenchmarkApiDelegateImpl implements BenchmarkApiDelegate {
     @Override
     public ResponseEntity<Void> deleteBenchmark(UUID benchmarkId, UUID environmentId) {
         benchmarkService.deleteBenchmark(environmentId, benchmarkId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> updateBenchmarkServices(UUID environmentId, UUID benchmarkId, BenchmarkServicesPatchDTO benchmarkServicesPatchDTO) {
+        benchmarkService.getBenchmark(environmentId, benchmarkId);
+        benchmarkServiceScopeService.updateBenchmarkServices(benchmarkId, benchmarkServicesPatchDTO.getServiceIds());
         return ResponseEntity.noContent().build();
     }
 }

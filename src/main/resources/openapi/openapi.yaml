@@ -419,6 +419,40 @@ paths:
         '500':
           $ref: '#/components/responses/500InternalServerError'
 
+  /v1/environments/{environmentId}/benchmarks/{benchmarkId}/services:
+    patch:
+      tags:
+        - Benchmark
+      operationId: updateBenchmarkServices
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: benchmarkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenchmarkServicesPatchDTO'
+      responses:
+        '204':
+          description: Services updated successfully
+        '400':
+          description: Bad request (duplicate IDs, invalid services)
+        '404':
+          description: Benchmark or environment not found
+        '409':
+          description: Benchmark has active/pending run
+
 
   /v1/environments/{environmentId}/runs:
     parameters:
@@ -1045,6 +1079,23 @@ components:
           format: date-time
           readOnly: true
           description: Timestamp when benchmark was last updated
+        serviceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+
+    BenchmarkServicesPatchDTO:
+      type: object
+      required:
+        - serviceIds
+      properties:
+        serviceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     PaginationDTO:
       type: object
