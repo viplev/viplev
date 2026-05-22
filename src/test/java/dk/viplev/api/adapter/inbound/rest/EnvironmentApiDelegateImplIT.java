@@ -298,15 +298,18 @@ class EnvironmentApiDelegateImplIT {
 
         org.assertj.core.api.Assertions.assertThat(agentCommand)
                 .isEqualTo("docker run -d"
+                        + " --pull always"
+                        + " --restart unless-stopped"
                         + " --name viplev-agent"
-                        + " -v /var/run/docker.sock:/var/run/docker.sock"
-                        + " -v /proc:/host/proc:ro"
-                        + " -v /etc/machine-id:/etc/machine-id:ro"
                         + " -e VIPLEV_URL=https://api.viplev.ringhus.dk"
                         + " -e VIPLEV_TOKEN=" + token
                         + " -e VIPLEV_ENVIRONMENT_ID=" + id
-                        + " -e AGENT_PROC_PATH=/host/proc"
-                        + " -p 8080:8080"
+                        + " -e VIPLEV_CADVISOR_IMAGE=gcr.io/cadvisor/cadvisor:v0.51.0"
+                        + " -e VIPLEV_NODE_EXPORTER_IMAGE=prom/node-exporter:v1.9.0"
+                        + " -e VIPLEV_K6_IMAGE=grafana/k6:0.53.0"
+                        + " -e VIPLEV_K6_TIMEOUT_MS=300000"
+                        + " -e AGENT_MESSAGE_POLLING_ENABLED=false"
+                        + " -v /var/run/docker.sock:/var/run/docker.sock"
                         + " ghcr.io/viplev/agent:latest");
     }
 }
