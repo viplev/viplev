@@ -193,6 +193,7 @@ public class AgentServiceImpl implements AgentService {
         }
 
         Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
+        boolean hasConfiguredScope = benchmarkServiceScopeService.hasConfiguredScope(benchmarkId);
 
         int totalHostMetricDataPoints = 0;
         int totalReplicaMetricDataPoints = 0;
@@ -264,7 +265,7 @@ public class AgentServiceImpl implements AgentService {
                 for (MetricResourceServiceDTO serviceDto : node.getServices()) {
                     Service service = servicesByName.get(serviceDto.getServiceName());
 
-                    if (!scopedServiceIds.contains(service.getId())) {
+                    if (hasConfiguredScope && !scopedServiceIds.contains(service.getId())) {
                         log.warn("Skipping non-scoped service metrics: environmentId={}, benchmarkId={}, runId={}, serviceId={}, serviceName={}, machineId={}",
                                 environmentId, benchmarkId, runId, service.getId(), service.getServiceName(), machineId);
                         continue;
@@ -321,8 +322,12 @@ public class AgentServiceImpl implements AgentService {
                 }
                 
                 // Batch save all replicas and metrics for this host
-                serviceReplicaRepository.saveAll(allReplicasToUpdate);
-                metricResourceReplicaRepository.saveAll(allReplicaMetrics);
+                if (!allReplicasToUpdate.isEmpty()) {
+                    serviceReplicaRepository.saveAll(allReplicasToUpdate);
+                }
+                if (!allReplicaMetrics.isEmpty()) {
+                    metricResourceReplicaRepository.saveAll(allReplicaMetrics);
+                }
                 currentHostReplicaMetricDataPoints = allReplicaMetrics.size();
                 totalReplicaMetricDataPoints += currentHostReplicaMetricDataPoints;
             }

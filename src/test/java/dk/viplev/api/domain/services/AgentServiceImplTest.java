@@ -87,6 +87,7 @@ class AgentServiceImplTest {
                 authService, benchmarkMapper, benchmarkRunMapper, messageMapper, benchmarkServiceScopeService);
 
         lenient().when(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId)).thenReturn(List.of());
+        lenient().when(benchmarkServiceScopeService.hasConfiguredScope(benchmarkId)).thenReturn(false);
 
         activeRun = new BenchmarkRun();
         activeRun.setId(runId);
@@ -210,6 +211,85 @@ class AgentServiceImplTest {
 
         verify(metricResourceHostRepository).saveAll(any());
         verify(metricResourceReplicaRepository).saveAll(any());
+    }
+
+    @Test
+    void shouldStoreServiceMetricsWhenBenchmarkHasNoConfiguredScope() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+
+        Service svc = new Service();
+        svc.setId(UUID.randomUUID());
+        svc.setServiceName("my-service");
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
+                .thenReturn(List.of(svc));
+        when(serviceReplicaRepository.findByServiceIdAndContainerId(eq(svc.getId()), eq("container-123")))
+                .thenReturn(Optional.empty());
+
+        ServiceReplica savedReplica = new ServiceReplica();
+        savedReplica.setId(UUID.randomUUID());
+        when(serviceReplicaRepository.save(any())).thenReturn(savedReplica);
+        when(serviceReplicaRepository.saveAll(any())).thenReturn(List.of(savedReplica));
+        when(metricResourceReplicaRepository.saveAll(any())).thenReturn(List.of());
+
+        MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
+        replicaDto.setContainerId("container-123");
+        replicaDto.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName("my-service");
+        serviceDto.setReplicas(List.of(replicaDto));
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto);
+
+        verify(metricResourceReplicaRepository).saveAll(any());
+    }
+
+    @Test
+    void shouldSkipServiceMetricsWhenBenchmarkHasExplicitEmptyScope() {
+        mockValidAccess();
+        Host host = buildHost("machine-1");
+        when(hostRepository.findByEnvironmentIdAndMachineId(environmentId, "machine-1"))
+                .thenReturn(Optional.of(host));
+        when(metricResourceHostRepository.saveAll(any())).thenReturn(List.of());
+        when(benchmarkServiceScopeService.hasConfiguredScope(benchmarkId)).thenReturn(true);
+
+        Service svc = new Service();
+        svc.setId(UUID.randomUUID());
+        svc.setServiceName("my-service");
+        when(serviceRepository.findByEnvironmentIdAndServiceNameInAndDeletedAtIsNull(eq(environmentId), anySet()))
+                .thenReturn(List.of(svc));
+
+        MetricResourceServiceReplicaDTO replicaDto = new MetricResourceServiceReplicaDTO();
+        replicaDto.setContainerId("container-123");
+        replicaDto.setMetrics(List.of(buildDataPoint()));
+
+        MetricResourceServiceDTO serviceDto = new MetricResourceServiceDTO();
+        serviceDto.setServiceName("my-service");
+        serviceDto.setReplicas(List.of(replicaDto));
+
+        MetricResourceNodeDTO node = new MetricResourceNodeDTO();
+        node.setMachineId("machine-1");
+        node.setMetrics(List.of(buildDataPoint()));
+        node.setServices(List.of(serviceDto));
+
+        MetricResourceDTO dto = new MetricResourceDTO();
+        dto.setHosts(List.of(node));
+
+        agentService.storeResourceMetrics(environmentId, benchmarkId, runId, dto);
+
+        verify(metricResourceReplicaRepository, never()).saveAll(any());
     }
 
     @Test
