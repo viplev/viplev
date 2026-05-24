@@ -183,7 +183,7 @@ class EnvironmentServiceImplTest {
                         + " -e VIPLEV_URL=https://api.viplev.ringhus.dk"
                         + " -e VIPLEV_TOKEN=my-token"
                         + " -e VIPLEV_ENVIRONMENT_ID=" + env.getId()
-                        + " -e VIPLEV_CADVISOR_IMAGE=gcr.io/cadvisor/cadvisor:v0.51.0"
+                        + " -e VIPLEV_CADVISOR_IMAGE=gcr.io/cadvisor/cadvisor:v0.55.1"
                         + " -e VIPLEV_NODE_EXPORTER_IMAGE=prom/node-exporter:v1.9.0"
                         + " -e VIPLEV_K6_IMAGE=grafana/k6:0.53.0"
                         + " -e VIPLEV_K6_TIMEOUT_MS=300000"
