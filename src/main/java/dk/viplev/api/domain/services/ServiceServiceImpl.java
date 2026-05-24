@@ -18,13 +18,13 @@ import dk.viplev.api.port.outbound.db.ServiceReplicaRepository;
 import dk.viplev.api.port.outbound.db.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -156,7 +156,7 @@ public class ServiceServiceImpl implements ServiceService {
                         .collect(Collectors.toSet());
 
                 Map<String, ServiceReplica> existingReplicasByContainerId =
-                        serviceReplicaRepository.findByServiceIdAndContainerIdIn(service.getId(), incomingContainerIds).stream()
+                        serviceReplicaRepository.findByContainerIdIn(incomingContainerIds).stream()
                                 .collect(Collectors.toMap(ServiceReplica::getContainerId, r -> r));
 
                 for (ServiceReplicaDTO replicaDto : serviceDto.getReplicas()) {
@@ -176,6 +176,13 @@ public class ServiceServiceImpl implements ServiceService {
                             replicasUpdated++;
                         }
                         // Update fields
+                        if (existingReplica.getService() != service) {
+                            log.info("Reassigning replica to service: containerId={}, fromServiceId={}, toServiceId={}",
+                                    replicaDto.getContainerId(),
+                                    existingReplica.getService() != null ? existingReplica.getService().getId() : null,
+                                    service.getId());
+                            existingReplica.setService(service);
+                        }
                         existingReplica.setHost(host);
                         existingReplica.setContainerName(replicaDto.getContainerName());
                         // Only update startedAt if provided (avoid overwriting with null)
@@ -194,21 +201,11 @@ public class ServiceServiceImpl implements ServiceService {
                         replica.setStartedAt(replicaDto.getStartedAt());
                         replica.setCreatedAt(now);
                         replica.setLastSeenAt(now);
-                        
-                        try {
-                            serviceReplicaRepository.save(replica);
-                            replicasCreated++;
-                            log.debug("Created replica: containerId={}, containerName={}, replicaId={}", 
-                                    replicaDto.getContainerId(), replicaDto.getContainerName(), replica.getId());
-                        } catch (DataIntegrityViolationException e) {
-                            // Check if it's a container_id uniqueness violation
-                            if (e.getMessage() != null && e.getMessage().contains("container_id")) {
-                                throw new BadRequestException("Invalid replica", 
-                                    "Container ID already exists: " + replicaDto.getContainerId());
-                            }
-                            // Re-throw if it's a different constraint violation
-                            throw e;
-                        }
+
+                        serviceReplicaRepository.save(replica);
+                        replicasCreated++;
+                        log.debug("Created replica: containerId={}, containerName={}, replicaId={}",
+                                replicaDto.getContainerId(), replicaDto.getContainerName(), replica.getId());
                     }
                 }
 

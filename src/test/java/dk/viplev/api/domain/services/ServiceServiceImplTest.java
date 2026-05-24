@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import dk.viplev.api.adapter.inbound.rest.dto.HostDTO;
 import dk.viplev.api.adapter.inbound.rest.dto.ServiceRegistrationDTO;
@@ -18,6 +19,7 @@ import dk.viplev.api.domain.exception.NotFoundException;
 import dk.viplev.api.domain.model.Environment;
 import dk.viplev.api.domain.model.Host;
 import dk.viplev.api.domain.model.Service;
+import dk.viplev.api.domain.model.ServiceReplica;
 import dk.viplev.api.domain.model.User;
 import dk.viplev.api.port.inbound.AuthService;
 import dk.viplev.api.port.outbound.db.EnvironmentRepository;
@@ -221,9 +223,9 @@ class ServiceServiceImplTest {
         when(serviceRepository.findByEnvironmentId(environmentId))
                 .thenReturn(new ArrayList<>(List.of(existing)));
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
-        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
+        when(serviceReplicaRepository.findByContainerIdIn(any())).thenReturn(List.of());
+        lenient().when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
         ServiceRegistrationServiceDTO service = buildServiceWithReplica("my-service", "nginx:2.0", "container123", "my-service-1", "abc123");
 
@@ -310,8 +312,8 @@ class ServiceServiceImplTest {
         when(serviceRepository.findByEnvironmentId(any())).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
-        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
+        when(serviceReplicaRepository.findByContainerIdIn(any())).thenReturn(List.of());
+        lenient().when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
         ServiceRegistrationServiceDTO service = buildServiceWithReplica("new-service", "nginx:latest", "c1", "c1", "abc123");
 
@@ -340,8 +342,8 @@ class ServiceServiceImplTest {
         when(serviceRepository.findByEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
         when(serviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(serviceReplicaRepository.findByServiceIdAndContainerIdIn(any(), any())).thenReturn(List.of());
-        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
+        when(serviceReplicaRepository.findByContainerIdIn(any())).thenReturn(List.of());
+        lenient().when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of());
 
         ServiceRegistrationServiceDTO service1 = buildServiceWithReplica("service-on-host1", "nginx:latest", "c1", "c1", "abc123");
         ServiceRegistrationServiceDTO service2 = buildServiceWithReplica("service-on-host2", "redis:7", "c2", "c2", "node2");
@@ -351,6 +353,41 @@ class ServiceServiceImplTest {
 
         verify(hostRepository, org.mockito.Mockito.times(2)).save(any());
         verify(serviceRepository, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    @Test
+    void shouldReassignReplicaWhenContainerAlreadyExistsOnAnotherService() {
+        mockAgentAuth();
+
+        Service previousService = createService("previous-service", "nginx:1.0");
+        ServiceReplica existingReplica = new ServiceReplica();
+        existingReplica.setId(UUID.randomUUID());
+        existingReplica.setService(previousService);
+        existingReplica.setHost(host);
+        existingReplica.setContainerId("shared-container");
+        existingReplica.setContainerName("previous-service-1");
+
+        when(serviceRepository.findByEnvironmentId(environmentId)).thenReturn(new ArrayList<>());
+        when(serviceRepository.save(any())).thenAnswer(inv -> {
+            Service service = inv.getArgument(0);
+            if (service.getId() == null) {
+                service.setId(UUID.randomUUID());
+            }
+            return service;
+        });
+        when(serviceReplicaRepository.findByContainerIdIn(any())).thenReturn(List.of(existingReplica));
+        when(serviceReplicaRepository.findByServiceIdAndDeletedAtIsNull(any())).thenReturn(List.of(existingReplica));
+        when(serviceReplicaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ServiceRegistrationServiceDTO service = buildServiceWithReplica(
+                "new-service", "nginx:latest", "shared-container", "new-service-1", "abc123");
+
+        serviceService.registerServices(environmentId, buildRegistration(List.of(service)));
+
+        assertThat(existingReplica.getService().getServiceName()).isEqualTo("new-service");
+        assertThat(existingReplica.getContainerName()).isEqualTo("new-service-1");
+        verify(serviceReplicaRepository, never()).saveAndFlush(any());
+        verify(serviceReplicaRepository).save(existingReplica);
     }
 
     @Test
