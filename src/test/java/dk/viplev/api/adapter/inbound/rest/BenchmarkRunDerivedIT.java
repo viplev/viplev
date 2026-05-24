@@ -302,6 +302,40 @@ class BenchmarkRunDerivedIT {
                 .andExpect(jsonPath("$.http.length()").value(1));
     }
 
+    @Test
+    void shouldReturnServiceMetricsWhenBenchmarkHasNoConfiguredScope() throws Exception {
+        String unscopedBenchmarkId = createBenchmark(user1Token, environmentId, "Derived Unscoped Benchmark");
+        BenchmarkRun run = createRunDirectly(UUID.fromString(unscopedBenchmarkId), "user1@viplev.dk");
+        LocalDateTime t = LocalDateTime.of(2025, 1, 15, 13, 0, 0);
+
+        metricResourceHostRepository.saveAndFlush(new MetricResourceHost(run, host, t, 10.0, 1L, 2L, 3L, 4L, 5L, 6L));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(run, replica, t, 20.0, 10L, 20L, 30L, 40L, 50L, 60L));
+
+        mockMvc.perform(get(runUrl(environmentId, unscopedBenchmarkId, run.getId().toString()))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hosts.length()").value(1))
+                .andExpect(jsonPath("$.hosts[0].services.length()").value(1))
+                .andExpect(jsonPath("$.hosts[0].services[0].serviceId").value(service.getId().toString()));
+    }
+
+    @Test
+    void shouldHideServiceMetricsWhenBenchmarkScopeWasExplicitlyCleared() throws Exception {
+        BenchmarkRun run = createRunDirectly(UUID.fromString(benchmarkId), "user1@viplev.dk");
+        LocalDateTime t = LocalDateTime.of(2025, 1, 15, 14, 0, 0);
+
+        benchmarkServiceRepository.softDeleteBenchmarkService(UUID.fromString(benchmarkId), service.getId());
+
+        metricResourceHostRepository.saveAndFlush(new MetricResourceHost(run, host, t, 10.0, 1L, 2L, 3L, 4L, 5L, 6L));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(run, replica, t, 20.0, 10L, 20L, 30L, 40L, 50L, 60L));
+
+        mockMvc.perform(get(runUrl(environmentId, benchmarkId, run.getId().toString()))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hosts.length()").value(1))
+                .andExpect(jsonPath("$.hosts[0].services.length()").value(0));
+    }
+
     // --- Helpers ---
 
     private String runUrl(String envId, String bmId, String runId) {

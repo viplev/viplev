@@ -235,6 +235,23 @@ class BenchmarkRunRawIT {
                 .andExpect(jsonPath("$.timeSeries.k6.dataPoints.length()").value(1));
     }
 
+    @Test
+    void shouldReturnServiceMetricsWhenBenchmarkHasNoConfiguredScope() throws Exception {
+        String unscopedBenchmarkId = createBenchmark(user1Token, environmentId, "Raw Unscoped Benchmark");
+        BenchmarkRun run = createRunDirectly(UUID.fromString(unscopedBenchmarkId), "user1@viplev.dk");
+        LocalDateTime t = LocalDateTime.of(2025, 1, 15, 12, 0, 0);
+
+        metricResourceHostRepository.saveAndFlush(new MetricResourceHost(run, host, t, 10.0, 1L, 2L, 3L, 4L, 5L, 6L));
+        metricResourceReplicaRepository.saveAndFlush(new MetricResourceReplica(run, replica, t, 20.0, 10L, 20L, 30L, 40L, 50L, 60L));
+
+        mockMvc.perform(get(rawUrl(environmentId, unscopedBenchmarkId, run.getId().toString()))
+                        .header("Authorization", "Bearer " + user1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timeSeries.hosts.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services.length()").value(1))
+                .andExpect(jsonPath("$.timeSeries.hosts[0].services[0].serviceId").value(service.getId().toString()));
+    }
+
     // --- Helpers ---
 
     private String rawUrl(String envId, String bmId, String runId) {

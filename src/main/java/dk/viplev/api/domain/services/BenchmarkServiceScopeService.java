@@ -84,6 +84,11 @@ public class BenchmarkServiceScopeService {
     }
 
     @Transactional(readOnly = true)
+    public boolean hasConfiguredScope(UUID benchmarkId) {
+        return benchmarkServiceRepository.existsByBenchmarkId(benchmarkId);
+    }
+
+    @Transactional(readOnly = true)
     public boolean hasActiveOrPendingRun(UUID benchmarkId) {
         return benchmarkRunRepository.existsByBenchmarkIdAndStatusIn(benchmarkId, ACTIVE_OR_PENDING_RUN_STATUSES);
     }

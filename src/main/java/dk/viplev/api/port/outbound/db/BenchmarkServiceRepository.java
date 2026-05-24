@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public interface BenchmarkServiceRepository extends JpaRepository<BenchmarkService, UUID>, BenchmarkServiceRepositoryCustom {
 
+    boolean existsByBenchmarkId(UUID benchmarkId);
+
     List<BenchmarkService> findByBenchmarkIdAndDeletedAtIsNull(UUID benchmarkId);
 
     default List<BenchmarkService> findActiveBenchmarkServices(UUID benchmarkId) {

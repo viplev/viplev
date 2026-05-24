@@ -160,7 +160,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<MetricResourceHost> hostMetrics = metricResourceHostRepository.findByBenchmarkRunId(runId);
         List<MetricResourceReplica> replicaMetrics = metricResourceReplicaRepository.findByBenchmarkRunId(runId);
         Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
-        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(replicaMetrics, scopedServiceIds);
+        boolean hasConfiguredScope = benchmarkServiceScopeService.hasConfiguredScope(benchmarkId);
+        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(
+                replicaMetrics,
+                scopedServiceIds,
+                hasConfiguredScope);
 
         BenchmarkRunDerivedDTO result = new BenchmarkRunDerivedDTO();
         result.setRun(benchmarkRunMapper.toDto(run));
@@ -194,7 +198,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
         List<MetricK6Http> httpMetrics = metricK6HttpRepository.findByBenchmarkRunId(runId);
         List<MetricK6Vus> vusMetrics = metricK6VusRepository.findByBenchmarkRunId(runId);
         Set<UUID> scopedServiceIds = Set.copyOf(benchmarkServiceScopeService.getActiveScopedServiceIds(benchmarkId));
-        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(replicaMetrics, scopedServiceIds);
+        boolean hasConfiguredScope = benchmarkServiceScopeService.hasConfiguredScope(benchmarkId);
+        List<MetricResourceReplica> filteredReplicaMetrics = filterReplicaMetricsByScopedServices(
+                replicaMetrics,
+                scopedServiceIds,
+                hasConfiguredScope);
 
         RawTimeSeriesDTO timeSeries = new RawTimeSeriesDTO();
         timeSeries.setHosts(buildRawHosts(hostMetrics, filteredReplicaMetrics));
@@ -708,7 +716,11 @@ public class BenchmarkRunServiceImpl implements BenchmarkRunService {
     }
 
     private List<MetricResourceReplica> filterReplicaMetricsByScopedServices(List<MetricResourceReplica> replicaMetrics,
-                                                                              Set<UUID> scopedServiceIds) {
+                                                                              Set<UUID> scopedServiceIds,
+                                                                              boolean hasConfiguredScope) {
+        if (scopedServiceIds.isEmpty() && !hasConfiguredScope) {
+            return replicaMetrics;
+        }
         if (scopedServiceIds.isEmpty()) {
             return List.of();
         }
